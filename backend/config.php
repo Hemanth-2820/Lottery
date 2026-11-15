@@ -8,7 +8,7 @@ const DB_USER = 'a177262b_digituser';
 const DB_PASS = 'digit@2026';
 
 // Your Vercel app address(es). Only these sites may call the API.
-const ALLOWED_ORIGINS = ['https://digit-game-pi.vercel.app', 'https://lottery-dist-two.vercel.app', 'http://localhost:5173'];
+const ALLOWED_ORIGINS = ['https://murugan-vert.vercel.app', 'https://digit-game-pi.vercel.app', 'https://lottery-dist-two.vercel.app', 'http://localhost:5173'];
 
 // Who can open the owner portal and the analytics. Use real email addresses.
 const ADMIN_EMAILS   = ['owner@example.com'];
