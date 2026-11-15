@@ -8,7 +8,7 @@ const DB_USER = 'lucky3_user';
 const DB_PASS = 'change-me';
 
 // Your Vercel app address(es). Only these sites may call the API.
-const ALLOWED_ORIGINS = ['https://lucky3.vercel.app', 'http://localhost:5173'];
+const ALLOWED_ORIGINS = ['https://lottery-dist-two.vercel.app', 'http://localhost:5173'];
 
 // Who can open the owner portal and the analytics. Use real email addresses.
 const ADMIN_EMAILS   = ['owner@example.com'];
