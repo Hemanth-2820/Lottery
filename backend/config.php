@@ -3,9 +3,9 @@
 defined('LUCKY3') or exit;
 
 const DB_HOST = 'localhost';
-const DB_NAME = 'lucky3';            // the database name from your hosting panel
-const DB_USER = 'lucky3_user';
-const DB_PASS = 'change-me';
+const DB_NAME = 'a177262b_digit';            // the database name from your hosting panel
+const DB_USER = 'a177262b_digituser';
+const DB_PASS = 'digit@2026';
 
 // Your Vercel app address(es). Only these sites may call the API.
 const ALLOWED_ORIGINS = ['https://digit-game-pi.vercel.app', 'https://lottery-dist-two.vercel.app', 'http://localhost:5173'];
