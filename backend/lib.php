@@ -67,12 +67,56 @@ function lineWin(array $x, string $r): int {
 
 function randomCode(int $len): string { $a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $s = ''; for ($i = 0; $i < $len; $i++) $s .= $a[random_int(0, strlen($a) - 1)]; return $s; }
 
+function smtpSend(string $to, string $subject, string $html): bool {
+  if (empty(SMTP_HOST) || empty(SMTP_USER)) {
+    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . MAIL_FROM_NAME . ' <' . MAIL_FROM . ">\r\n";
+    return @mail($to, $subject, $html, $headers, '-f' . MAIL_FROM);
+  }
+  $errno = 0; $errstr = '';
+  $s = @fsockopen((SMTP_PORT == 465 ? 'ssl://' : '') . SMTP_HOST, (int)SMTP_PORT, $errno, $errstr, 15);
+  if (!$s) return false;
+  $read = function() use ($s) {
+    $r = '';
+    while (!feof($s)) {
+      $line = fgets($s, 515);
+      $r .= $line;
+      if (substr($line, 3, 1) === ' ') break;
+    }
+    return $r;
+  };
+  $write = function(string $cmd) use ($s, $read) {
+    fputs($s, $cmd . "\r\n");
+    return $read();
+  };
+  $read();
+  $write('EHLO ' . (gethostname() ?: 'localhost'));
+  if (SMTP_PORT == 587) {
+    $write('STARTTLS');
+    stream_socket_enable_crypto($s, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+    $write('EHLO ' . (gethostname() ?: 'localhost'));
+  }
+  $write('AUTH LOGIN');
+  $write(base64_encode(SMTP_USER));
+  $write(base64_encode(SMTP_PASS));
+  $write('MAIL FROM: <' . MAIL_FROM . '>');
+  $write('RCPT TO: <' . $to . '>');
+  $write('DATA');
+  $msg = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . MAIL_FROM_NAME . ' <' . MAIL_FROM . ">\r\nTo: <$to>\r\nSubject: $subject\r\n\r\n$html\r\n.";
+  $write($msg);
+  $write('QUIT');
+  fclose($s);
+  return true;
+}
+
 function sendCode(string $email, string $code): bool {
-  $subject = 'Your Lucky3 sign-in code: ' . $code;
+  $subject = 'Your ' . MAIL_FROM_NAME . ' sign-in code: ' . $code;
   $html = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border-radius:16px;background:#1b0d3a;color:#fff;text-align:center">'
-    . '<h2 style="color:#ffd700;margin:0 0 8px">Lucky3</h2><p>Your sign-in code is</p>'
+    . '<h2 style="color:#ffd700;margin:0 0 8px">' . MAIL_FROM_NAME . '</h2><p>Your sign-in code is</p>'
     . '<div style="font-size:34px;letter-spacing:8px;font-weight:bold;color:#ffd700;margin:12px 0">' . $code . '</div>'
     . '<p style="color:#cbb8ff;font-size:13px">It works for 10 minutes. If you did not ask for it, ignore this email.</p></div>';
+  if (!empty(SMTP_USER)) {
+    return smtpSend($email, $subject, $html);
+  }
   $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . MAIL_FROM_NAME . ' <' . MAIL_FROM . ">\r\n";
   return @mail($email, $subject, $html, $headers, '-f' . MAIL_FROM);
 }

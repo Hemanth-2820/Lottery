@@ -1,6 +1,6 @@
 // Put this file in the React app as src/lib/api.js. It talks to the PHP backend.
 // Set VITE_API_URL in Vercel (Settings > Environment Variables), e.g. https://your-subdomain.hostingersite.com/api.php
-const URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api.php'
+const URL = import.meta.env.VITE_API_URL || 'https://1772794870-linux.bigrock.in/digitapi/api.php'
 let token = (() => { try { return localStorage.getItem('l3token') || '' } catch { return '' } })()
 export const setToken = t => { token = t || ''; try { t ? localStorage.setItem('l3token', t) : localStorage.removeItem('l3token') } catch { /* private mode */ } }
 export const getToken = () => token

@@ -14,9 +14,13 @@ const ALLOWED_ORIGINS = ['https://digit-game-pi.vercel.app', 'https://lottery-di
 const ADMIN_EMAILS   = ['owner@example.com'];
 const ANALYST_EMAILS = ['analytics@example.com'];
 
-// Email that sends the login codes (create it in your hosting panel's Email section)
-const MAIL_FROM      = 'no-reply@yourdomain-or-subdomain.com';
-const MAIL_FROM_NAME = 'Lucky3';
+// Email that sends the login codes
+const MAIL_FROM      = 'murugan@nexlify.in';
+const MAIL_FROM_NAME = 'Digit';
+const SMTP_HOST      = 'smtp.gmail.com';
+const SMTP_PORT      = 587;
+const SMTP_USER      = '';      // leave empty: the server's own mail is used
+const SMTP_PASS      = '';
 
 // true = the code is also returned to the app (only for testing!). Set false before going live.
 const DEV_SHOW_OTP = true;
