@@ -1,0 +1,6 @@
+<FilesMatch "^(config|lib)\.php$|\.sql$">
+  Require all denied
+</FilesMatch>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+Options -Indexes

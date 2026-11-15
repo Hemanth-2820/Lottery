@@ -1,0 +1,10 @@
+{
+  "name": "Lucky3",
+  "short_name": "Lucky3",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07051a",
+  "theme_color": "#07051a"
+}
