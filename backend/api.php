@@ -40,6 +40,24 @@ try {
     out(['ok' => true, 'token' => $token, 'role' => $role]);
   }
 
+  case 'admin_login': {   // admin panel: password only, no email code
+    $pw = (string)arg('password');
+    $ip = substr($_SERVER['REMOTE_ADDR'] ?? 'x', 0, 45);
+    $tries = (int)q("SELECT COUNT(*) FROM otps WHERE email = ? AND created_at > NOW() - INTERVAL 15 MINUTE", ['fail:' . $ip])->fetchColumn();
+    if ($tries >= 5) fail('Too many wrong tries. Wait 15 minutes.', 429);
+    $role = ($pw !== '' && hash_equals(ADMIN_PASSWORD, $pw)) ? 'admin' : ((ANALYST_PASSWORD !== '' && hash_equals(ANALYST_PASSWORD, $pw)) ? 'analyst' : '');
+    if (!$role) { q("INSERT INTO otps (email, code_hash, expires_at) VALUES (?, '', NOW())", ['fail:' . $ip]); fail('Wrong password'); }
+    $email = $role === 'admin' ? (ADMIN_EMAILS[0] ?? 'owner@lucky3.local') : (ANALYST_EMAILS[0] ?? 'analytics@lucky3.local');
+    $u = q('SELECT id FROM users WHERE email = ?', [$email])->fetch();
+    if (!$u) {
+      do { $rc = 'L3' . randomCode(6); } while (q('SELECT 1 FROM users WHERE ref_code = ?', [$rc])->fetch());
+      q('INSERT INTO users (email, role, ref_code) VALUES (?,?,?)', [$email, $role, $rc]); $uid = (int)db()->lastInsertId();
+    } else { $uid = (int)$u['id']; q('UPDATE users SET role = ? WHERE id = ?', [$role, $uid]); }
+    $token = bin2hex(random_bytes(32));
+    q('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL 7 DAY)', [hash('sha256', $token), $uid]);
+    out(['ok' => true, 'token' => $token, 'role' => $role]);
+  }
+
   case 'logout': {
     if (preg_match('/Bearer\s+(\S+)/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m)) q('DELETE FROM sessions WHERE token_hash = ?', [hash('sha256', $m[1])]);
     out(['ok' => true]);
