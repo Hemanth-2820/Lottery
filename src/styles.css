@@ -598,6 +598,16 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 .ref-f b{flex:1;font-size:13px}.ref-f span{font-size:11px;color:var(--mut)}.ref-f span.ok{color:#7dffc0}
 .ref-fr>small{font-size:10.5px;color:var(--dim)}
 
+/* ---- install the app (after sign-in on phones) ---- */
+.ig{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px max(16px,env(safe-area-inset-left,0px));background:radial-gradient(80% 50% at 50% 30%,rgba(122,0,255,.55),transparent 70%),rgba(10,4,30,.92);backdrop-filter:blur(8px);animation:rise .4s}
+.ig-card{width:min(380px,100%);text-align:center;padding:26px 22px;border-radius:28px;background:linear-gradient(180deg,#3a0c7a,#1b0d3a);border:1.5px solid #ff8ae6;box-shadow:0 0 30px rgba(255,0,200,.45),inset 0 1px 0 rgba(255,255,255,.3)}
+.ig-icon{width:96px;height:96px;margin:0 auto 14px;border-radius:24px;display:grid;place-items:center;background:radial-gradient(circle,#7a00ff,#1b0d3a);box-shadow:0 0 0 2px #ffd700,0 0 24px rgba(255,190,0,.7);animation:igbob 2s ease-in-out infinite}
+.ig-icon img{width:84%}@keyframes igbob{50%{transform:translateY(-6px) scale(1.04)}}
+.ig-card h2{font:800 22px var(--disp);color:#fff;margin-bottom:6px}.ig-card p{color:#d9ccff;font-size:13.5px;line-height:1.45;margin-bottom:16px}
+.ig-btn{width:100%;height:54px;border-radius:27px;font:800 18px var(--disp);color:#2a1300;background:linear-gradient(90deg,#FFD700,#FF8A00);box-shadow:0 0 22px rgba(255,170,0,.7);animation:lggo 2s ease-in-out infinite alternate}
+.ig-steps{text-align:left;display:flex;flex-direction:column;gap:8px;padding-left:20px;color:#fff;font-size:13.5px}.ig-steps b{color:#ffd700}.ig-share{display:inline-block;transform:rotate(-90deg)}
+.ig-later{margin-top:16px;color:rgba(255,255,255,.55);font-size:12px;text-decoration:underline}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important}.cam{transition:none}}
 #root{height:100%}
 

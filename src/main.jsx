@@ -14,3 +14,6 @@ const fit = () => document.documentElement.style.setProperty('--rz', Math.min(1,
 fit(); window.addEventListener('resize', fit)
 
 createRoot(document.getElementById('root')).render(<Root />)
+
+// needed so phones can install the app on the home screen
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {})
