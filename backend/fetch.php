@@ -131,7 +131,7 @@ function get_auto_status(): array {
     $r = q('SELECT digits, full_no FROM results WHERE day = ? AND lot = ? AND h = ?', [$today, $lot, $h])->fetch();
     if ($r) {
       $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $r['full_no'], 'digits' => $r['digits'], 'state' => 'done'];
-    } elseif (time() < strtotime("$today $h:00") + 300) {
+    } elseif (time() < strtotime("$today $h:00")) {
       $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'wait'];
     } else {
       $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'miss'];
@@ -152,7 +152,7 @@ function run_auto_fetch(bool $publish = true): array {
       $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $existing['full_no'], 'digits' => $existing['digits'], 'state' => 'done'];
       continue;
     }
-    if (time() < strtotime("$today $h:00") + 300) {
+    if (time() < strtotime("$today $h:00")) {
       $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'wait'];
       continue;
     }
