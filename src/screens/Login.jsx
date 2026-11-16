@@ -118,7 +118,15 @@ export default function Login({ onLogin }) {
               {[0, 1, 2, 3, 4, 5].map(i => <span key={i} className={'os' + (i === otp.length && state !== 'ok' ? ' cur' : '')}>{otp[i] !== undefined && <img key={otp[i] + i} src={LG.nums[otp[i]]} alt="" />}</span>)}
               <input id="login-otp" ref={otpRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="6-digit code" value={otp} onChange={e => type(e.target.value)} onFocus={() => setKb(touch())} onBlur={() => setKb(false)} />
             </label>
-            {code ? <div className="lg-demo">Demo: your code is <b>{code}</b>. In the real app it arrives by email.</div> : null}
+            {isLive ? (
+              code ? (
+                <div className="lg-demo">Test mode: your code is <b>{code}</b>. The email was also sent.</div>
+              ) : (
+                <div className="lg-demo">Check your email inbox (and Spam) for your code.</div>
+              )
+            ) : (
+              <div className="lg-demo">Demo: your code is <b>{code}</b>. In the real app it arrives by email.</div>
+            )}
             <div className="lg-re">{left > 0 ? 'Send again in 0:' + String(left).padStart(2, '0') : <button type="button" className="lnk" onClick={() => send()}>Send the code again</button>}</div>
           </div>
         </div>
