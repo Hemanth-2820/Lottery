@@ -147,3 +147,7 @@
 @keyframes s5cshine{0%,45%{background-position:150% 0}100%{background-position:-150% 0}}
 @keyframes s5fade{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){#sp5 *{animation-duration:.01s!important;animation-delay:0s!important}}
+
+/* phone-width stage on every screen (desktop shows the same mobile view in the middle) */
+#sp5{left:50%;right:auto;width:var(--w);translate:-50% 0;box-shadow:0 0 0 100vmax #0d0420}
+
