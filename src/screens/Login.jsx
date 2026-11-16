@@ -5,7 +5,7 @@ import { LIVE, api, setToken } from '../lib/api.js'
 // The whole screen is the Murugan design picture (941 x 1672). The email box and the Send Code
 // button are real controls placed exactly on top of the ones drawn in the picture.
 const A = import.meta.env.BASE_URL + 'art/'
-const BG = A + 'mg-login.webp'
+const BG = A + 'mg3-bg.webp'
 const W = 941, H = 1672
 const at = (x, y, w, h) => ({ position: 'absolute', left: x / W * 100 + '%', top: y / H * 100 + '%', width: w / W * 100 + '%', height: h / H * 100 + '%' })
 const mask = e => { const [n, d] = e.split('@'); return n[0] + '***@' + d }
@@ -68,7 +68,13 @@ export default function Login({ onLogin }) {
             <h3 style={{ fontSize: 56 * k }}>{state === 'ok' ? 'Welcome!' : 'Enter the code'}</h3>
             <p>Sent to <b>{mask(email.trim())}</b> · <button type="button" className="lnk" onClick={() => setStep(0)}>Change</button></p>
             <label className={'mg-otp ' + state}>
-              {[0, 1, 2, 3, 4, 5].map(i => <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''} style={{ fontSize: 44 * k }}>{otp[i] ?? ''}</span>)}
+              {[0, 1, 2, 3, 4, 5].map(i => (
+                <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''} style={{ fontSize: 44 * k }}>
+                  {otp[i] !== undefined && otp[i] !== '' ? (
+                    <img src={LG.nums[otp[i]]} alt={otp[i]} style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
+                  ) : ''}
+                </span>
+              ))}
               <input ref={otpRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={e => type(e.target.value)} aria-label="6-digit code" />
             </label>
             {code ? <div className="mg-demo">{LIVE ? 'Test mode' : 'Demo'}: your code is <b>{code}</b></div> : <div className="mg-demo">Check your email inbox (and Spam) for the code.</div>}
