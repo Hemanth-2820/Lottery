@@ -2,8 +2,9 @@
 // fetch.php: reads today's results from the result websites and publishes the LAST 3 DIGITS automatically.
 // Runs every 5 minutes from a cPanel Cron Job. It also pays all tickets, exactly like the admin Publish button.
 //   Test (shows what it finds, publishes nothing):  https://api.fashionsnap.in/fetch.php?key=murugan-fetch-2026&test=1
-require __DIR__ . '/config.php';
-require __DIR__ . '/lib.php';
+define('LUCKY3', 1);
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/lib.php';
 date_default_timezone_set('Asia/Kolkata');
 
 const FETCH_KEY = 'murugan-fetch-2026';   // needed only when opening fetch.php in a browser
