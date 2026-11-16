@@ -1,58 +1,107 @@
 import React, { useEffect, useState } from 'react'
 
-// After sign-in on a phone: asks the player to install the app on the home screen.
-// It keeps coming back until the app is installed (opened from the home-screen icon).
-// Android Chrome: one tap installs it. iPhone Safari: shows the 3 Share-menu steps.
-const isPhone = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent)
-const installed = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } }
 
-let deferred = null   // Chrome's install prompt, saved when the browser offers it
-if (typeof window !== 'undefined') window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e })
+export const isStandalone = () => {
+  try {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.includes('android-app://')
+    )
+  } catch {
+    return false
+  }
+}
 
-export default function InstallGate() {
-  const [show, setShow] = useState(() => isPhone() && !installed())
-  const [canPrompt, setCanPrompt] = useState(!!deferred), [later, setLater] = useState(false), [done, setDone] = useState(false)
+let deferred = null
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault()
+    deferred = e
+  })
+}
+
+export default function InstallGate({ user, onLogout, onInstalled }) {
+  const [canPrompt, setCanPrompt] = useState(!!deferred)
+  const [installed, setInstalled] = useState(false)
 
   useEffect(() => {
-    const on = e => { e.preventDefault(); deferred = e; setCanPrompt(true) }
-    const ok = () => { setDone(true); setTimeout(() => setShow(false), 2500) }
-    window.addEventListener('beforeinstallprompt', on); window.addEventListener('appinstalled', ok)
-    const t = setTimeout(() => setLater(true), 15000)   // a way out if this browser can't install apps
-    return () => { window.removeEventListener('beforeinstallprompt', on); window.removeEventListener('appinstalled', ok); clearTimeout(t) }
-  }, [])
-  if (!show) return null
+    const onPrompt = e => {
+      e.preventDefault()
+      deferred = e
+      setCanPrompt(true)
+    }
+    const onAppInstalled = () => {
+      setInstalled(true)
+      onInstalled?.()
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onAppInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
+  }, [onInstalled])
 
   const install = async () => {
     if (!deferred) return
     deferred.prompt()
     const r = await deferred.userChoice.catch(() => ({}))
-    deferred = null; setCanPrompt(false)
-    if (r.outcome === 'accepted') { setDone(true); setTimeout(() => setShow(false), 2500) }
+    deferred = null
+    setCanPrompt(false)
+    if (r.outcome === 'accepted') {
+      setInstalled(true)
+      onInstalled?.()
+    }
   }
 
   return (
     <div className="ig">
       <div className="ig-card">
-        <div className="ig-icon"><img src="/app-logo.png" alt="Murugan" style={{ width: '100%', borderRadius: 22 }} /></div>
-        <h2>{done ? 'Installed! 🎉' : 'Install the Murugan app'}</h2>
-        <p>{done ? 'Open Murugan from your home screen.' : 'Get the full-screen app on your phone. It opens instantly from your home screen, like any other app.'}</p>
-        {!done && (isIOS() ? (
-          <ol className="ig-steps">
-            <li>Tap the <b>Share</b> button <span className="ig-share">⎋</span> at the bottom of Safari</li>
-            <li>Scroll and tap <b>Add to Home Screen</b></li>
-            <li>Tap <b>Add</b>, then open Murugan from your home screen</li>
-          </ol>
-        ) : canPrompt ? (
-          <button className="ig-btn" onClick={install}>⬇ Install app</button>
-        ) : (
-          <ol className="ig-steps">
-            <li>Tap the <b>⋮</b> menu at the top right of Chrome</li>
-            <li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>
-            <li>Open Murugan from your home screen</li>
-          </ol>
-        ))}
-        {later && !done && <button className="ig-later" onClick={() => setShow(false)}>Continue in browser</button>}
+        <div className="ig-icon">
+          <img src="/app-logo.png" alt="Murugan" style={{ width: '100%', borderRadius: 22 }} />
+        </div>
+        <h2>{installed ? 'Installed! 🎉' : 'App Installation Required'}</h2>
+        <p>
+          {installed
+            ? 'Murugan is now installed! Open Murugan from your phone home screen to play.'
+            : 'To view your wallet and play lottery games, you must install the Murugan app on your phone home screen.'}
+        </p>
+
+        {!installed && (
+          isIOS() ? (
+            <ol className="ig-steps">
+              <li>Tap the <b>Share</b> button <span className="ig-share">⎋</span> in Safari</li>
+              <li>Scroll down and tap <b>Add to Home Screen</b></li>
+              <li>Tap <b>Add</b>, then open <b>Murugan</b> from your home screen</li>
+            </ol>
+          ) : canPrompt ? (
+            <button className="ig-btn" onClick={install}>⬇ Install Murugan App</button>
+          ) : (
+            <ol className="ig-steps">
+              <li>Tap the <b>⋮</b> (menu) at the top right of Chrome</li>
+              <li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>
+              <li>Open <b>Murugan</b> from your home screen to start playing</li>
+            </ol>
+          )
+        )}
+
+        <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+          <div style={{ fontSize: 12.5, color: '#ffd700' }}>
+            Signed in as <b>{user}</b>
+          </div>
+          <button
+            type="button"
+            className="lnk"
+            onClick={onLogout}
+            style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            Sign out / Change account
+          </button>
+        </div>
       </div>
     </div>
   )
