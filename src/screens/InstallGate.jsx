@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { LOGO } from '../art.js'
 
 // After sign-in on a phone: asks the player to install the app on the home screen.
 // It keeps coming back until the app is installed (opened from the home-screen icon).
@@ -35,14 +34,14 @@ export default function InstallGate() {
   return (
     <div className="ig">
       <div className="ig-card">
-        <div className="ig-icon"><img src={LOGO} alt="Lucky3" /></div>
-        <h2>{done ? 'Installed! 🎉' : 'Install the Lucky3 app'}</h2>
-        <p>{done ? 'Open Lucky3 from your home screen.' : 'Get the full-screen app on your phone. It opens instantly from your home screen, like any other app.'}</p>
+        <div className="ig-icon"><img src="/app-logo.png" alt="Murugan" style={{ width: '100%', borderRadius: 22 }} /></div>
+        <h2>{done ? 'Installed! 🎉' : 'Install the Murugan app'}</h2>
+        <p>{done ? 'Open Murugan from your home screen.' : 'Get the full-screen app on your phone. It opens instantly from your home screen, like any other app.'}</p>
         {!done && (isIOS() ? (
           <ol className="ig-steps">
             <li>Tap the <b>Share</b> button <span className="ig-share">⎋</span> at the bottom of Safari</li>
             <li>Scroll and tap <b>Add to Home Screen</b></li>
-            <li>Tap <b>Add</b>, then open Lucky3 from your home screen</li>
+            <li>Tap <b>Add</b>, then open Murugan from your home screen</li>
           </ol>
         ) : canPrompt ? (
           <button className="ig-btn" onClick={install}>⬇ Install app</button>
@@ -50,7 +49,7 @@ export default function InstallGate() {
           <ol className="ig-steps">
             <li>Tap the <b>⋮</b> menu at the top right of Chrome</li>
             <li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>
-            <li>Open Lucky3 from your home screen</li>
+            <li>Open Murugan from your home screen</li>
           </ol>
         ))}
         {later && !done && <button className="ig-later" onClick={() => setShow(false)}>Continue in browser</button>}
