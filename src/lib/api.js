@@ -2,6 +2,7 @@
 // Set VITE_API_URL in Vercel (Settings > Environment Variables), e.g. https://api.fashionsnap.in/api.php
 const URL = import.meta.env.VITE_API_URL || 'https://api.fashionsnap.in/api.php'
 export const isLive = Boolean(URL)
+export const LIVE = isLive
 
 let token = (() => { try { return localStorage.getItem('l3token') || '' } catch { return '' } })()
 export const setToken = t => { token = t || ''; try { t ? localStorage.setItem('l3token', t) : localStorage.removeItem('l3token') } catch { /* private mode */ } }
