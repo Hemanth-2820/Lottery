@@ -20,7 +20,7 @@ export const BALLS = [
 
 
 // Sign-in screen artwork: the design picture, the hourglass cut out of it, Welcome badge, lottery cards, code balls 0-9
-const A = './art/'
+const A = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL ? (import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL + 'art/' : import.meta.env.BASE_URL + '/art/') : '/art/')
 export const LG = {
   top: A + 'lg-top.webp', front: A + 'lg-front.webp', welcome: A + 'lg-welcome.webp',
   cards: ['dear', 'kerala', 'goa', 'sikkim', 'punjab'].map(n => A + 'lg-card-' + n + '.webp'),

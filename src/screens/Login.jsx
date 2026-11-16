@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { LG } from '../art.js'
 import { LIVE, api, setToken } from '../lib/api.js'
+import Sphere3D from '../components/Sphere3D.jsx'
+import './login.css'
 
 // Murugan design dimensions (941 x 1670)
-const A = import.meta.env.BASE_URL + 'art/'
+const A = import.meta.env.BASE_URL ? (import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL + 'art/' : import.meta.env.BASE_URL + '/art/') : '/art/'
 const BG = A + 'mg3-bg.webp'
 const W = 941, H = 1670
 const at = (x, y, w, h) => ({ position: 'absolute', left: (x / W * 100) + '%', top: (y / H * 100) + '%', width: (w / W * 100) + '%', height: (h / H * 100) + '%' })
 const mask = e => { const [n, d] = e.split('@'); return n[0] + '***@' + d }
 
-// Glass bowl center & rolling balls (9 colorful 3D lottery balls tumbling inside the dome)
+// Glass bowl center & rolling balls (9 colorful balls tumbling inside the lotto dome)
 const BCX = 472, BCY = 938
 const BOWL_BALLS = [
   { n: 1, x: -28, y: -20, vx: 26, vy: -15, rot: 0 },
@@ -33,17 +35,67 @@ const OUTER_BALLS = [
 
 // Sparkling magical dust particles
 const SPARKLES = [
-  { left: '46%', top: '52%', size: '5px', dur: '2.5', delay: '0' },
-  { left: '52%', top: '50%', size: '4px', dur: '3.1', delay: '0.4' },
-  { left: '40%', top: '56%', size: '6px', dur: '2.8', delay: '0.8' },
-  { left: '58%', top: '58%', size: '4px', dur: '3.4', delay: '1.2' },
-  { left: '48%', top: '61%', size: '5px', dur: '2.2', delay: '0.2' },
-  { left: '35%', top: '51%', size: '4px', dur: '3.0', delay: '1.5' },
-  { left: '62%', top: '53%', size: '5px', dur: '2.7', delay: '0.6' },
-  { left: '30%', top: '48%', size: '4px', dur: '3.2', delay: '1.0' },
-  { left: '68%', top: '49%', size: '6px', dur: '2.6', delay: '1.8' },
-  { left: '50%', top: '46%', size: '4px', dur: '3.5', delay: '0.3' },
+  { x: '46%', s: '5px', t: '2.5s', dl: '0s', dx: '-15px' },
+  { x: '52%', s: '4px', t: '3.1s', dl: '0.4s', dx: '20px' },
+  { x: '40%', s: '6px', t: '2.8s', dl: '0.8s', dx: '-30px' },
+  { x: '58%', s: '4px', t: '3.4s', dl: '1.2s', dx: '25px' },
+  { x: '48%', s: '5px', t: '2.2s', dl: '0.2s', dx: '-10px' },
+  { x: '35%', s: '4px', t: '3.0s', dl: '1.5s', dx: '-22px' },
+  { x: '62%', s: '5px', t: '2.7s', dl: '0.6s', dx: '18px' },
+  { x: '30%', s: '4px', t: '3.2s', dl: '1.0s', dx: '-35px' },
+  { x: '68%', s: '6px', t: '2.6s', dl: '1.8s', dx: '30px' },
+  { x: '50%', s: '4px', t: '3.5s', dl: '0.3s', dx: '5px' },
 ]
+
+function Burst({ k }) {
+  const ref = useRef()
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return
+    const w = cv.width = Math.round(820 * k), h = cv.height = Math.round(640 * k)
+    const g = cv.getContext('2d')
+    const cols = ['#ffd23f', '#ff2dd0', '#00e5ff', '#ff5a36', '#ffffff', '#76ff03']
+    const pts = Array.from({ length: 70 }, () => {
+      const a = Math.random() * Math.PI * 2, sp = (Math.random() * 8 + 3) * k
+      return {
+        x: w / 2, y: h / 2,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 2 * k,
+        r: (Math.random() * 4 + 2) * k,
+        c: cols[(Math.random() * cols.length) | 0],
+        alpha: 1,
+        life: Math.random() * 0.4 + 0.6
+      }
+    })
+    let raf, last = performance.now()
+    const loop = now => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      g.clearRect(0, 0, w, h)
+      let alive = false
+      for (const p of pts) {
+        if (p.alpha <= 0) continue
+        alive = true
+        p.x += p.vx * dt * 60
+        p.y += p.vy * dt * 60
+        p.vy += 4.5 * k * dt * 60
+        p.alpha -= dt / p.life
+        g.save()
+        g.globalAlpha = Math.max(0, p.alpha)
+        g.fillStyle = p.c
+        g.shadowColor = p.c
+        g.shadowBlur = 8 * k
+        g.beginPath()
+        g.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+        g.fill()
+        g.restore()
+      }
+      if (alive) raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [k])
+  return <canvas ref={ref} className="m3-burst" />
+}
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState(''), [step, setStep] = useState(0)
@@ -51,6 +103,7 @@ export default function Login({ onLogin }) {
   const [left, setLeft] = useState(0), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
   const otpRef = useRef(), tm = useRef()
   const bowlRefs = useRef([]), outerRefs = useRef([])
+  const ROLL = useRef(BOWL_BALLS.map(() => ({ a: 0 }))).current
 
   // Fit the picture to the phone screen
   const fit = () => {
@@ -72,7 +125,6 @@ export default function Login({ onLogin }) {
     const loop = now => {
       const dt = Math.min(0.033, (now - last) / 1000)
       last = now
-      const t = now / 1000
 
       for (let i = 0; i < balls.length; i++) {
         const b = balls[i]
@@ -93,6 +145,7 @@ export default function Login({ onLogin }) {
         b.x += b.vx * dt
         b.y += b.vy * dt
         b.rot = (b.rot + b.vx * 1.5 * dt) % 360
+        ROLL[i].a += (Math.hypot(b.vx, b.vy) * 0.8 + 60) * 0.015 * dt
 
         // Bowl spherical boundary bounce
         const dist = Math.hypot(b.x, b.y)
@@ -121,38 +174,27 @@ export default function Login({ onLogin }) {
           if (d < minDist && d > 0.1) {
             const nx = dx / d, ny = dy / d
             const overlap = (minDist - d) * 0.5
-            b1.x -= nx * overlap; b1.y -= ny * overlap
-            b2.x += nx * overlap; b2.y += ny * overlap
-            const rV = (b2.vx - b1.vx) * nx + (b2.vy - b1.vy) * ny
-            if (rV < 0) {
-              const imp = rV * 0.85
-              b1.vx += imp * nx; b1.vy += imp * ny
-              b2.vx -= imp * nx; b2.vy -= imp * ny
-            }
+            b1.x -= nx * overlap * 0.5
+            b1.y -= ny * overlap * 0.5
+            b2.x += nx * overlap * 0.5
+            b2.y += ny * overlap * 0.5
+            const dvx = b2.vx - b1.vx, dvy = b2.vy - b1.vy
+            const p = 2 * (nx * dvx + ny * dvy) / 2
+            b1.vx += p * nx * 0.8
+            b1.vy += p * ny * 0.8
+            b2.vx -= p * nx * 0.8
+            b2.vy -= p * ny * 0.8
           }
         }
       }
 
-      // Update bowl ball DOM positions
+      // Update bowl ball DOM positions inside the bowl
       for (let i = 0; i < balls.length; i++) {
         const el = bowlRefs.current[i]
         if (el) {
           const b = balls[i]
-          el.style.left = ((BCX + b.x) / W * 100) + '%'
-          el.style.top = ((BCY + b.y) / H * 100) + '%'
-          el.style.transform = `translate(-50%, -50%) rotate(${b.rot}deg)`
-        }
-      }
-
-      // Update outer floating balls with gentle wave motion
-      for (let i = 0; i < OUTER_BALLS.length; i++) {
-        const el = outerRefs.current[i]
-        if (el) {
-          const ob = OUTER_BALLS[i]
-          const dy = Math.sin(t * 1.6 + ob.phase) * 8
-          const dx = Math.cos(t * 1.2 + ob.phase) * 4
-          el.style.left = ((ob.x + dx) / W * 100) + '%'
-          el.style.top = ((ob.y + dy) / H * 100) + '%'
+          el.style.left = ((118 + b.x) / 236 * 100) + '%'
+          el.style.top = ((118 + b.y) / 236 * 100) + '%'
         }
       }
 
@@ -180,56 +222,57 @@ export default function Login({ onLogin }) {
     if (state === 'ok') return
     v = v.replace(/\D/g, '').slice(0, 6); setOtp(v); setState('')
     if (v.length < 6) return
-    const good = () => { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 1200) }
+    const good = () => { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 1400) }
     const bad = m => { setState('bad'); say(m || 'Wrong code. Try again.'); setTimeout(() => { setOtp(''); setState('') }, 700) }
     if (!LIVE) return v === code ? good() : bad()
     api('verify_otp', { email: email.trim(), code: v }).then(r => { setToken(r.token); good() }, x => bad(x.message))
   }
 
   return (
-    <div id="mglogin">
-      <div className="mg-fill" style={{ backgroundImage: `url(${BG})` }} />
-      <div className="mg-stage" style={{ width: box.w, height: box.h }}>
-        <img className="mg-bg" src={BG} alt="Murugan" />
-        <div className="mg-glow" />
-        {LG.cards.map((_, i) => <div key={i} className="mg-shine" style={{ ...at(52 + i * 171, 628, 156, 138), '--i': i }} />)}
+    <div id="mg3" style={{ '--k': k }}>
+      <div className="m3-fill" style={{ backgroundImage: `url(${BG})` }} />
+      <div className="m3-stage" style={{ width: box.w, height: box.h }}>
+        <img className="m3-bg" src={BG} alt="Murugan" />
+        <div className="m3-halo" style={at(BCX - 250, 240, 500, 500)} />
+        <div className="m3-plate" style={at(100, 720, 741, 380)} />
+        {LG.cards.map((_, i) => (
+          <div key={i} className="m3-shine" style={{ ...at(52 + i * 171, 628, 156, 138), '--i': i }} />
+        ))}
 
         {/* 1. Rolling 3D Balls inside the glass bowl */}
-        {BOWL_BALLS.map((b, i) => (
-          <div
-            key={i}
-            ref={el => (bowlRefs.current[i] = el)}
-            style={{
-              position: 'absolute',
-              left: ((BCX + b.x) / W * 100) + '%',
-              top: ((BCY + b.y) / H * 100) + '%',
-              width: (52 / W * 100) + '%',
-              aspectRatio: '1',
-              zIndex: 4,
-              pointerEvents: 'none',
-              transform: `translate(-50%, -50%) rotate(${b.rot}deg)`,
-              filter: 'drop-shadow(0 5px 10px rgba(0,0,0,0.55))',
-              willChange: 'transform, left, top',
-            }}
-          >
-            <img
-              src={LG.nums[b.n]}
-              alt={`Ball ${b.n}`}
-              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-            />
-          </div>
-        ))}
+        <div className="m3-bowl" style={at(BCX - 118, BCY - 118, 236, 236)}>
+          {BOWL_BALLS.map((b, i) => (
+            <div
+              key={i}
+              ref={el => (bowlRefs.current[i] = el)}
+              className="m3-bb"
+              style={{
+                left: ((118 + b.x) / 236 * 100) + '%',
+                top: ((118 + b.y) / 236 * 100) + '%',
+                filter: 'drop-shadow(0 5px 10px rgba(0,0,0,0.55))',
+                willChange: 'left, top',
+              }}
+            >
+              <Sphere3D n={b.n} size={48} roll={ROLL[i]} />
+            </div>
+          ))}
+        </div>
 
         {/* 2. Glass dome reflection highlight over the rolling balls */}
         <div
-          className="mg-dome-glass"
+          className="m3-glass"
           style={{
             ...at(BCX - 118, BCY - 118, 236, 236),
-            borderRadius: '50%',
             pointerEvents: 'none',
             zIndex: 5,
-            background: 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 40%, transparent 62%), radial-gradient(circle at 50% 50%, transparent 70%, rgba(255,215,0,0.25) 92%, rgba(255,215,0,0.5) 100%)',
-            boxShadow: 'inset 0 0 22px rgba(255,215,0,0.35)',
+          }}
+        />
+        <div
+          className="m3-ring"
+          style={{
+            ...at(BCX - 140, BCY - 140, 280, 280),
+            pointerEvents: 'none',
+            zIndex: 5,
           }}
         />
 
@@ -238,6 +281,7 @@ export default function Login({ onLogin }) {
           <div
             key={i}
             ref={el => (outerRefs.current[i] = el)}
+            className="m3-fl"
             style={{
               position: 'absolute',
               left: (ob.x / W * 100) + '%',
@@ -247,39 +291,25 @@ export default function Login({ onLogin }) {
               zIndex: 6,
               pointerEvents: 'none',
               transform: 'translate(-50%, -50%)',
-              filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(255,215,0,0.45))',
-              willChange: 'transform, left, top',
+              '--i': i,
+              '--t': `${3.2 + i * 0.5}s`,
             }}
           >
-            <img
-              src={LG.nums[ob.n]}
-              alt={`Floating Ball ${ob.n}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                display: 'block',
-                animation: `mgfloat ${3.2 + i * 0.5}s ease-in-out ${i * 0.3}s infinite alternate`,
-              }}
-            />
+            <Sphere3D n={ob.n} size={ob.size} speed={ob.speed} dir={i % 2 ? 1 : -1} tilt={0.3} />
           </div>
         ))}
 
         {/* 4. Magical Sparkles around the machine */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 7 }}>
+        <div className="m3-spark" style={{ zIndex: 7 }}>
           {SPARKLES.map((s, i) => (
-            <span
+            <i
               key={i}
               style={{
-                position: 'absolute',
-                left: s.left,
-                top: s.top,
-                width: s.size,
-                height: s.size,
-                borderRadius: '50%',
-                background: '#ffe882',
-                boxShadow: '0 0 8px 2px rgba(255,215,0,0.9)',
-                animation: `mgsparkle ${s.dur}s ease-in-out ${s.delay}s infinite`,
+                '--x': s.x,
+                '--s': s.s,
+                '--t': s.t,
+                '--dl': s.dl,
+                '--dx': s.dx,
               }}
             />
           ))}
@@ -287,25 +317,73 @@ export default function Login({ onLogin }) {
 
         {step === 0 ? (
           <form onSubmit={send} noValidate style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
-            <input className="mg-email" style={{ ...at(240, 1262, 560, 60), fontSize: 30 * k }} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} aria-label="Email" />
-            <button className="mg-send" style={at(138, 1360, 662, 88)} disabled={busy} aria-label="Send Code">{busy && <span style={{ fontSize: 34 * k }}>Sending…</span>}</button>
+            <div className="m3-runner" style={at(210, 1248, 520, 84)} />
+            <div className="m3-mini" style={at(220, 1256, 500, 68)}>
+              <i style={{ '--d': '0s' }} />
+              <i style={{ '--d': '-2s' }} />
+              <i style={{ '--d': '-4s' }} />
+            </div>
+            <input
+              className="m3-email"
+              style={{ ...at(240, 1262, 460, 60), fontSize: Math.max(16, 30 * k) }}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              aria-label="Email"
+            />
+            <button className="m3-send" style={at(138, 1360, 662, 88)} disabled={busy} aria-label="Send Code">
+              <span>{busy ? 'Sending…' : 'Send Code >'}</span>
+            </button>
           </form>
         ) : (
-          <div className="mg-code" style={{ ...at(70, 1095, 800, 440), fontSize: 26 * k, zIndex: 10 }}>
-            <h3 style={{ fontSize: 56 * k }}>{state === 'ok' ? 'Welcome!' : 'Enter the code'}</h3>
+          <div
+            className={'m3-ticket' + (state === 'ok' ? ' ok-shake' : '')}
+            style={{ ...at(70, 1070, 800, 480), zIndex: 10 }}
+          >
+            <div className="m3-tk-top">
+              <span>LOTTERY TICKET</span>
+              <em>VERIFIED</em>
+            </div>
+            <h3>{state === 'ok' ? 'Lucky Code!' : 'Draw your code'}</h3>
             <p>Sent to <b>{mask(email.trim())}</b> · <button type="button" className="lnk" onClick={() => setStep(0)}>Change</button></p>
-            <label className={'mg-otp ' + state}>
+            <label className={'m3-otp ' + state}>
               {[0, 1, 2, 3, 4, 5].map(i => (
-                <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''} style={{ fontSize: 44 * k }}>
+                <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''} style={{ '--i': i }}>
                   {otp[i] !== undefined && otp[i] !== '' ? (
-                    <img src={LG.nums[otp[i]]} alt={otp[i]} style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
-                  ) : ''}
+                    <img src={LG.nums[otp[i]]} alt={otp[i]} />
+                  ) : null}
+                  <small>{i + 1}</small>
                 </span>
               ))}
-              <input ref={otpRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={e => type(e.target.value)} aria-label="6-digit code" />
+              <input
+                ref={otpRef}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otp}
+                onChange={e => type(e.target.value)}
+                aria-label="6-digit code"
+              />
             </label>
-            {code ? <div className="mg-demo">{LIVE ? 'Test mode' : 'Demo'}: your code is <b>{code}</b></div> : <div className="mg-demo">Check your email inbox (and Spam) for the code.</div>}
-            <div>{left > 0 ? 'Send again in 0:' + String(left).padStart(2, '0') : <button type="button" className="lnk" onClick={() => send()}>Send the code again</button>}</div>
+            {state === 'ok' && <Burst k={k} />}
+            {code ? (
+              <div className="m3-demo">{LIVE ? 'Test mode' : 'Demo'}: your code is <b>{code}</b></div>
+            ) : (
+              <div className="m3-demo">Check your email inbox (and Spam) for the code.</div>
+            )}
+            <div className="m3-tk-foot">
+              <small>
+                {left > 0 ? (
+                  'Send again in 0:' + String(left).padStart(2, '0')
+                ) : (
+                  <button type="button" className="lnk" onClick={() => send()}>Resend Code</button>
+                )}
+              </small>
+              <div className="m3-bar" />
+            </div>
           </div>
         )}
       </div>

@@ -611,30 +611,3 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 @media (prefers-reduced-motion:reduce){*{animation:none!important}.cam{transition:none}}
 #root{height:100%}
 
-/* ---- Murugan sign-in ---- */
-#mglogin{position:fixed;inset:0;overflow:hidden;background:#07051a;display:flex;align-items:center;justify-content:center}
-.mg-fill{position:absolute;inset:-24px;background-size:cover;background-position:center;filter:blur(30px) brightness(.65) saturate(1.3);opacity:.8;pointer-events:none}
-.mg-stage{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;overflow:hidden}
-.mg-bg{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none}
-.mg-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 35%,rgba(255,215,0,.22),transparent 60%);mix-blend-mode:screen}
-.mg-shine{position:absolute;pointer-events:none;border-radius:20px;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%);background-size:250% 100%;animation:mgshine 4s calc(var(--i, 0)*.4s) ease-in-out infinite}
-@keyframes mgshine{0%,100%{background-position:150% 0}50%{background-position:-50% 0}}
-@keyframes mgfloat{0%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(5deg) scale(1.02)}100%{transform:translateY(3px) rotate(-3deg)}}
-@keyframes mgsparkle{0%,100%{transform:translateY(0) scale(0.3);opacity:0}50%{transform:translateY(-24px) scale(1.1);opacity:0.95}}
-.mg-email{border:none;outline:none;background:transparent;color:#fff;font-family:inherit;font-weight:600;padding:0 16px;box-sizing:border-box;text-align:left;user-select:text;-webkit-user-select:text}
-.mg-email::placeholder{color:rgba(255,255,255,.45)}
-.mg-send{border:none;outline:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#2a1300;font-weight:800;font-family:inherit}
-.mg-send:disabled{opacity:.85;cursor:wait}
-.mg-code{box-sizing:border-box;padding:28px 22px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;border-radius:36px;background:linear-gradient(180deg,rgba(27,13,58,.95),rgba(46,12,90,.92));border:1.5px solid #cf7bff;box-shadow:0 10px 40px rgba(0,0,0,.7),0 0 24px rgba(200,90,255,.5);backdrop-filter:blur(14px);color:#fff}
-.mg-code h3{margin:0;font-weight:800;color:#ffd700;text-shadow:0 2px 6px rgba(0,0,0,.5)}
-.mg-code p{margin:0;color:#f4ecff}
-.mg-code p b{color:#ffd700}
-.mg-otp{position:relative;display:flex;justify-content:center;gap:10px;cursor:text}
-.mg-otp span{display:flex;align-items:center;justify-content:center;width:1.25em;height:1.35em;border-radius:12px;background:rgba(15,6,32,.7);border:2px solid rgba(255,215,0,.4);color:#ffd700;font-weight:800;font-family:monospace;transition:all .2s ease}
-.mg-otp span.cur{border-color:#00e5ff;box-shadow:0 0 12px #00e5ff}
-.mg-otp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:text}
-.mg-otp.ok span{border-color:#16c784;box-shadow:0 0 16px #16c784}
-.mg-otp.bad span{border-color:#ff3b3b;box-shadow:0 0 16px #ff3b3b}
-.mg-demo{padding:6px 14px;border-radius:12px;background:rgba(255,215,0,.12);border:1px dashed #ffd700;color:#fff3c4}
-.mg-demo b{color:#fff;letter-spacing:2px}
-
