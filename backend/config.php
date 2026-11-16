@@ -17,11 +17,11 @@ const ADMIN_PASSWORD   = 'murugan@2026';
 const ANALYST_PASSWORD = '';
 
 // Email that sends the login codes
-const MAIL_FROM      = 'murugan@nexlify.in';
-const MAIL_FROM_NAME = 'Digit';
+const MAIL_FROM      = 'murugan@api.fashionsnap.in';
+const MAIL_FROM_NAME = 'Murugan';
 const SMTP_HOST      = 'smtp.gmail.com';
 const SMTP_PORT      = 587;
-const SMTP_USER      = '';      // leave empty: the server's own mail is used
+const SMTP_USER      = '';      // leave empty: the server's own mail is used, or fill with Gmail + App Password
 const SMTP_PASS      = '';
 
 // false = code only goes by email, never shown on screen
