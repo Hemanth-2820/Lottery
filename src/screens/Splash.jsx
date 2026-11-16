@@ -61,7 +61,7 @@ export default function Splash({ onDone }) {
           </div>
           <div className="s5-rim">{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ '--a': i * 15 + 'deg', '--j': i % 2 }} />)}</div>
           <div className="s5-glare" />
-          <div className="s5-pin"><img src={A + 'mg-logo.webp'} alt="" /></div>
+          <div className="s5-pin"><img src={import.meta.env.BASE_URL + 'app-logo.png'} alt="Murugan" /></div>
           <div className="s5-sweep" />
           <div className="s5-sparks">{Array.from({ length: 12 }, (_, i) => <i key={i} style={{ '--a': i * 30 + 'deg' }} />)}</div>
           <div className="s5-white" />
