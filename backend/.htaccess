@@ -3,4 +3,5 @@
 </FilesMatch>
 RewriteEngine On
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^digitapi/api\.php$ api.php [L,QSA]
 Options -Indexes

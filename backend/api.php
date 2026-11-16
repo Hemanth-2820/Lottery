@@ -55,6 +55,7 @@ try {
     } else { $uid = (int)$u['id']; q('UPDATE users SET role = ? WHERE id = ?', [$role, $uid]); }
     $token = bin2hex(random_bytes(32));
     q('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL 7 DAY)', [hash('sha256', $token), $uid]);
+    q("DELETE FROM otps WHERE email = ?", ['fail:' . $ip]);
     out(['ok' => true, 'token' => $token, 'role' => $role]);
   }
 
