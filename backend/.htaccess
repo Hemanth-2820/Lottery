@@ -4,4 +4,5 @@
 RewriteEngine On
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 RewriteRule ^digitapi/api\.php$ api.php [L,QSA]
+RewriteRule ^digitapi/fetch\.php$ fetch.php [L,QSA]
 Options -Indexes
