@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { LG } from '../art.js'
-import Sphere3D from '../components/Sphere3D.jsx'
 import { LIVE, api, setToken } from '../lib/api.js'
 
 // Murugan design dimensions (941 x 1670)
@@ -10,18 +9,18 @@ const W = 941, H = 1670
 const at = (x, y, w, h) => ({ position: 'absolute', left: (x / W * 100) + '%', top: (y / H * 100) + '%', width: (w / W * 100) + '%', height: (h / H * 100) + '%' })
 const mask = e => { const [n, d] = e.split('@'); return n[0] + '***@' + d }
 
-// Glass bowl center & rolling balls (9 colorful balls tumbling inside the lotto dome)
+// Glass bowl center & rolling balls (9 colorful 3D lottery balls tumbling inside the dome)
 const BCX = 472, BCY = 938
 const BOWL_BALLS = [
-  { n: 1, x: -30, y: -20, vx: 30, vy: -15, rot: 0 },
-  { n: 3, x: 15, y: -40, vx: -25, vy: 35, rot: 1 },
-  { n: 8, x: -50, y: 15, vx: 40, vy: 10, rot: 2 },
-  { n: 3, x: 25, y: 35, vx: -35, vy: -25, rot: 3 },
-  { n: 9, x: 45, y: -10, vx: 20, vy: 40, rot: 4 },
-  { n: 7, x: -20, y: 50, vx: 25, vy: -35, rot: 5 },
-  { n: 0, x: 0, y: 0, vx: -30, vy: 20, rot: 0.5 },
-  { n: 5, x: -55, y: -30, vx: 35, vy: 15, rot: 1.5 },
-  { n: 2, x: 50, y: 40, vx: -20, vy: -25, rot: 2.5 },
+  { n: 1, x: -28, y: -20, vx: 26, vy: -15, rot: 0 },
+  { n: 3, x: 18, y: -38, vx: -22, vy: 30, rot: 45 },
+  { n: 8, x: -44, y: 15, vx: 32, vy: 12, rot: 90 },
+  { n: 3, x: 26, y: 32, vx: -30, vy: -20, rot: 135 },
+  { n: 9, x: 42, y: -10, vx: 18, vy: 35, rot: 180 },
+  { n: 7, x: -18, y: 46, vx: 22, vy: -28, rot: 225 },
+  { n: 0, x: 0, y: 2, vx: -25, vy: 18, rot: 270 },
+  { n: 5, x: -48, y: -28, vx: 28, vy: 14, rot: 315 },
+  { n: 2, x: 44, y: 36, vx: -18, vy: -22, rot: 60 },
 ]
 
 // 4 Outer floating 3D balls (Pink 3, Red 3, Blue 2, Yellow 5)
@@ -68,7 +67,7 @@ export default function Login({ onLogin }) {
   useEffect(() => {
     let raf, last = performance.now()
     const balls = BOWL_BALLS.map(b => ({ ...b }))
-    const maxR = 118 - 24
+    const maxR = 118 - 26
 
     const loop = now => {
       const dt = Math.min(0.033, (now - last) / 1000)
@@ -79,23 +78,23 @@ export default function Login({ onLogin }) {
         const b = balls[i]
         // Swirling vortex inside the bowl
         const ang = Math.atan2(b.y, b.x)
-        b.vx += -Math.sin(ang) * 95 * dt
-        b.vy += Math.cos(ang) * 95 * dt
+        b.vx += -Math.sin(ang) * 90 * dt
+        b.vy += Math.cos(ang) * 90 * dt
 
         // Central upward blower impulse
         if (b.y > 10 && Math.abs(b.x) < 55) {
-          b.vy -= 190 * dt
+          b.vy -= 180 * dt
         }
 
         // Gravity
-        b.vy += 90 * dt
+        b.vy += 85 * dt
 
         // Move
         b.x += b.vx * dt
         b.y += b.vy * dt
-        b.rot += b.vx * 0.05 * dt
+        b.rot = (b.rot + b.vx * 1.5 * dt) % 360
 
-        // Bowl boundary bounce
+        // Bowl spherical boundary bounce
         const dist = Math.hypot(b.x, b.y)
         if (dist > maxR) {
           const nx = b.x / dist, ny = b.y / dist
@@ -108,8 +107,8 @@ export default function Login({ onLogin }) {
           }
         }
 
-        b.vx *= 0.993
-        b.vy *= 0.993
+        b.vx *= 0.994
+        b.vy *= 0.994
       }
 
       // Ball-to-ball soft repulsion
@@ -118,7 +117,7 @@ export default function Login({ onLogin }) {
           const b1 = balls[i], b2 = balls[j]
           const dx = b2.x - b1.x, dy = b2.y - b1.y
           const d = Math.hypot(dx, dy)
-          const minDist = 46
+          const minDist = 48
           if (d < minDist && d > 0.1) {
             const nx = dx / d, ny = dy / d
             const overlap = (minDist - d) * 0.5
@@ -141,7 +140,7 @@ export default function Login({ onLogin }) {
           const b = balls[i]
           el.style.left = ((BCX + b.x) / W * 100) + '%'
           el.style.top = ((BCY + b.y) / H * 100) + '%'
-          el.style.transform = `translate(-50%, -50%) rotate(${b.rot}rad)`
+          el.style.transform = `translate(-50%, -50%) rotate(${b.rot}deg)`
         }
       }
 
@@ -202,14 +201,22 @@ export default function Login({ onLogin }) {
             ref={el => (bowlRefs.current[i] = el)}
             style={{
               position: 'absolute',
-              width: (48 / W * 100) + '%',
+              left: ((BCX + b.x) / W * 100) + '%',
+              top: ((BCY + b.y) / H * 100) + '%',
+              width: (52 / W * 100) + '%',
               aspectRatio: '1',
               zIndex: 4,
               pointerEvents: 'none',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))',
+              transform: `translate(-50%, -50%) rotate(${b.rot}deg)`,
+              filter: 'drop-shadow(0 5px 10px rgba(0,0,0,0.55))',
+              willChange: 'transform, left, top',
             }}
           >
-            <Sphere3D n={b.n} size={46} speed={0.7 + (i % 3) * 0.2} dir={i % 2 ? 1 : -1} />
+            <img
+              src={LG.nums[b.n]}
+              alt={`Ball ${b.n}`}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            />
           </div>
         ))}
 
@@ -217,12 +224,12 @@ export default function Login({ onLogin }) {
         <div
           className="mg-dome-glass"
           style={{
-            ...at(BCX - 142, BCY - 142, 284, 284),
+            ...at(BCX - 118, BCY - 118, 236, 236),
             borderRadius: '50%',
             pointerEvents: 'none',
             zIndex: 5,
-            background: 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 40%, transparent 62%), radial-gradient(circle at 50% 50%, transparent 68%, rgba(255,215,0,0.2) 90%, rgba(255,215,0,0.45) 100%)',
-            boxShadow: 'inset 0 0 20px rgba(255,215,0,0.3)',
+            background: 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 40%, transparent 62%), radial-gradient(circle at 50% 50%, transparent 70%, rgba(255,215,0,0.25) 92%, rgba(255,215,0,0.5) 100%)',
+            boxShadow: 'inset 0 0 22px rgba(255,215,0,0.35)',
           }}
         />
 
@@ -233,20 +240,33 @@ export default function Login({ onLogin }) {
             ref={el => (outerRefs.current[i] = el)}
             style={{
               position: 'absolute',
+              left: (ob.x / W * 100) + '%',
+              top: (ob.y / H * 100) + '%',
               width: (ob.size / W * 100) + '%',
               aspectRatio: '1',
-              zIndex: 5,
+              zIndex: 6,
               pointerEvents: 'none',
-              filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(255,215,0,0.45))',
               transform: 'translate(-50%, -50%)',
+              filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(255,215,0,0.45))',
+              willChange: 'transform, left, top',
             }}
           >
-            <Sphere3D n={ob.n} size={ob.size} speed={ob.speed} dir={i % 2 ? 1 : -1} tilt={0.3} />
+            <img
+              src={LG.nums[ob.n]}
+              alt={`Floating Ball ${ob.n}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+                animation: `mgfloat ${3.2 + i * 0.5}s ease-in-out ${i * 0.3}s infinite alternate`,
+              }}
+            />
           </div>
         ))}
 
         {/* 4. Magical Sparkles around the machine */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 7 }}>
           {SPARKLES.map((s, i) => (
             <span
               key={i}
@@ -266,12 +286,12 @@ export default function Login({ onLogin }) {
         </div>
 
         {step === 0 ? (
-          <form onSubmit={send} noValidate>
+          <form onSubmit={send} noValidate style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
             <input className="mg-email" style={{ ...at(240, 1262, 560, 60), fontSize: 30 * k }} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} aria-label="Email" />
             <button className="mg-send" style={at(138, 1360, 662, 88)} disabled={busy} aria-label="Send Code">{busy && <span style={{ fontSize: 34 * k }}>Sending…</span>}</button>
           </form>
         ) : (
-          <div className="mg-code" style={{ ...at(70, 1095, 800, 440), fontSize: 26 * k }}>
+          <div className="mg-code" style={{ ...at(70, 1095, 800, 440), fontSize: 26 * k, zIndex: 10 }}>
             <h3 style={{ fontSize: 56 * k }}>{state === 'ok' ? 'Welcome!' : 'Enter the code'}</h3>
             <p>Sent to <b>{mask(email.trim())}</b> · <button type="button" className="lnk" onClick={() => setStep(0)}>Change</button></p>
             <label className={'mg-otp ' + state}>
