@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react'
 import App from './App.jsx'
 import Login from './screens/Login.jsx'
 import InstallGate, { isStandalone } from './screens/InstallGate.jsx'
+import Splash from './screens/Splash.jsx'
 
 // Flow:
+// 0. On opening / refreshing: plays the 3D prize wheel onboarding splash screen (tap to skip).
 // 1. In browser (or app) while opening the link: shows the Login screen.
 // 2. After login: if inside normal web browser, forces installation and blocks the app.
 // 3. Only when running as the installed standalone app can the user see and play the game.
 export default function Root() {
+  const [splash, setSplash] = useState(true)
   const [user, setUser] = useState(() => {
     try { return localStorage.getItem('l3user') || null } catch { return null }
   })
@@ -31,6 +34,11 @@ export default function Root() {
   const logout = () => {
     try { localStorage.removeItem('l3user') } catch { /* private mode */ }
     setUser(null)
+  }
+
+  // Step 0: Onboarding splash screen
+  if (splash) {
+    return <Splash onDone={() => setSplash(false)} />
   }
 
   // Step 1: User not signed in -> show Login screen
