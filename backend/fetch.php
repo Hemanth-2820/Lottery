@@ -92,11 +92,24 @@ function r_kerala(string $html, int $h): ?string {
   return r_near($html, $h);   // fallback: a sentence on the page
 }
 
+// Auto-migrate table if src and full_no columns don't exist yet
+try {
+  db()->exec("ALTER TABLE results ADD src VARCHAR(10) NOT NULL DEFAULT 'manual', ADD full_no VARCHAR(20) NULL");
+} catch (Throwable $e) {}
+
 // ---------- publish = same as the admin Publish button: save result, pay every ticket ----------
-function publish(string $day, string $lot, int $h, string $d): string {
+function publish(string $day, string $lot, int $h, string $d, string $full = ''): string {
   db()->beginTransaction();
-  try { q('INSERT INTO results (day, lot, h, digits) VALUES (?,?,?,?)', [$day, $lot, $h, $d]); }
-  catch (PDOException $e) { db()->rollBack(); return 'already published'; }
+  try {
+    q('INSERT INTO results (day, lot, h, digits, src, full_no) VALUES (?,?,?,?,?,?)', [$day, $lot, $h, $d, 'auto', $full]);
+  } catch (PDOException $e) {
+    // Fallback if schema doesn't have src/full_no
+    try {
+      q('INSERT INTO results (day, lot, h, digits) VALUES (?,?,?,?)', [$day, $lot, $h, $d]);
+    } catch (PDOException $e2) {
+      db()->rollBack(); return 'already published';
+    }
+  }
   $n = 0; $paid = 0; $held = 0;
   foreach (q("SELECT * FROM tickets WHERE day = ? AND lot = ? AND h = ? AND status = 'booked' FOR UPDATE", [$day, $lot, $h])->fetchAll() as $t) {
     $won = 0; $hd = 0;
@@ -121,5 +134,5 @@ foreach ($SRC as [$lot, $h, $url, $reader]) {
   if (!$full) { echo "$name no result on the website yet\n"; continue; }
   $digits = substr(preg_replace('/\D/', '', $full), -3);   // LAST 3 DIGITS
   if (strlen($digits) !== 3) { echo "$name could not read: $full\n"; continue; }
-  echo "$name website: $full  ->  result $digits  " . ($test ? '(test, not published)' : publish($day, $lot, $h, $digits)) . "\n";
+  echo "$name website: $full  ->  result $digits  " . ($test ? '(test, not published)' : publish($day, $lot, $h, $digits, $full)) . "\n";
 }
