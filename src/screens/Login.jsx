@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { LG } from '../art.js'
 import Sphere3D from '../components/Sphere3D.jsx'
+import { api, setToken, isLive } from '../lib/api.js'
 
 const mask = e => { const [n, d] = e.split('@'); return n[0] + '***@' + d }
 const CARDS = ['Dear', 'Kerala', 'Goa Queen', 'Sikkim', 'Punjab']
@@ -44,20 +45,43 @@ export default function Login({ onLogin }) {
   const say = m => { setMsg(m); clearTimeout(tm.current); tm.current = setTimeout(() => setMsg(''), 2600) }
   useEffect(() => { if (left <= 0) return; const t = setTimeout(() => setLeft(l => l - 1), 1000); return () => clearTimeout(t) }, [left])
 
-  const send = e => {
+  const send = async e => {
     if (e) e.preventDefault()
-    const em = email.trim()
+    const em = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return say('Enter a valid email address')
-    // TODO(backend): ask the server to email a one-time code. Demo: created here and shown on screen.
-    setCode(String(Math.floor(100000 + Math.random() * 900000))); setOtp(''); setState(''); setLeft(30); setStep(1)
-    say('Code sent to ' + mask(em)); setTimeout(() => otpRef.current?.focus(), 800)
+    if (isLive) {
+      try {
+        const res = await api('send_otp', { email: em })
+        setCode(res.dev_code || '')
+        setOtp(''); setState(''); setLeft(30); setStep(1)
+        say('Code sent to ' + mask(em))
+        setTimeout(() => otpRef.current?.focus(), 800)
+      } catch (err) {
+        say(err.message || 'Could not send code')
+      }
+    } else {
+      setCode(String(Math.floor(100000 + Math.random() * 900000))); setOtp(''); setState(''); setLeft(30); setStep(1)
+      say('Code sent to ' + mask(em)); setTimeout(() => otpRef.current?.focus(), 800)
+    }
   }
-  const type = v => {
+  const type = async v => {
     if (state === 'ok') return
     v = v.replace(/\D/g, '').slice(0, 6); setOtp(v); setState('')
     if (v.length < 6) return
-    if (v === code) { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 1600) }
-    else { setState('bad'); say('Wrong code. Try again.'); setTimeout(() => { setOtp(''); setState('') }, 700) }
+    if (isLive) {
+      try {
+        const res = await api('verify_otp', { email: email.trim().toLowerCase(), code: v })
+        if (res.token) setToken(res.token)
+        setState('ok'); otpRef.current?.blur()
+        setTimeout(() => onLogin(email.trim().toLowerCase()), 1600)
+      } catch (err) {
+        setState('bad'); say(err.message || 'Wrong code. Try again.')
+        setTimeout(() => { setOtp(''); setState('') }, 700)
+      }
+    } else {
+      if (v === code) { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 1600) }
+      else { setState('bad'); say('Wrong code. Try again.'); setTimeout(() => { setOtp(''); setState('') }, 700) }
+    }
   }
 
   return (
@@ -94,7 +118,7 @@ export default function Login({ onLogin }) {
               {[0, 1, 2, 3, 4, 5].map(i => <span key={i} className={'os' + (i === otp.length && state !== 'ok' ? ' cur' : '')}>{otp[i] !== undefined && <img key={otp[i] + i} src={LG.nums[otp[i]]} alt="" />}</span>)}
               <input id="login-otp" ref={otpRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="6-digit code" value={otp} onChange={e => type(e.target.value)} onFocus={() => setKb(touch())} onBlur={() => setKb(false)} />
             </label>
-            <div className="lg-demo">Demo: your code is <b>{code}</b>. In the real app it arrives by email.</div>
+            {code ? <div className="lg-demo">Demo: your code is <b>{code}</b>. In the real app it arrives by email.</div> : null}
             <div className="lg-re">{left > 0 ? 'Send again in 0:' + String(left).padStart(2, '0') : <button type="button" className="lnk" onClick={() => send()}>Send the code again</button>}</div>
           </div>
         </div>

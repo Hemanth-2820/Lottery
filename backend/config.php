@@ -24,8 +24,8 @@ const SMTP_PORT      = 587;
 const SMTP_USER      = '';      // leave empty: the server's own mail is used
 const SMTP_PASS      = '';
 
-// true = the code is also returned to the app (only for testing!). Set false before going live.
-const DEV_SHOW_OTP = true;
+// false = code only goes by email, never shown on screen
+const DEV_SHOW_OTP = false;
 
 // Game rules (must match the app)
 const LOTS     = ['Dear' => [13, 18, 20], 'Kerala' => [15], 'Punjab' => [17], 'Sikkim' => [18], 'Goa Queen' => [12, 17, 19]];
@@ -37,4 +37,4 @@ const WIN_LAST1 = 50;               // Triple: last digit matches
 const APPROVAL = 15000;             // wins of this size wait for owner approval
 const REF_BONUS = 100;              // new player gets this when they use a friend's code
 const UPI_ID   = 'yourupi@bank';
-const UPI_NAME = 'Lucky3';
+const UPI_NAME = 'Murugan';

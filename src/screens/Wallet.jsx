@@ -42,7 +42,7 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
         {recharges.map(r => (
           <div className="rq" key={r.id}>
             <span><b>{inr(r.amt)}</b><small>UTR {r.utr}</small></span>
-            {r.status === 'pending' ? <><em className="badge wait">CHECKING</em><button className="demo" onClick={() => onConfirm(r.id)}>Confirm (demo)</button></> : <em className="badge won">ADDED</em>}
+            {r.status === 'pending' ? <><em className="badge wait">CHECKING</em>{onConfirm && <button className="demo" onClick={() => onConfirm(r.id)}>Confirm (demo)</button>}</> : <em className="badge won">ADDED</em>}
           </div>
         ))}
       </>}

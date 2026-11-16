@@ -84,7 +84,7 @@ export default function Tickets({ cart, tickets, show, drawing, onDel, onPay, on
 
                   <div className="bt-foot">
                     <div className="bt-id"><span className="bc" /><span>{t.id}{t.sample ? ' · SAMPLE' : ''}<br />Paid {inr(t.t)} · {s === 'wait' ? 'result at ' + lbl(t.h) : t.lines.filter(c => c.w).length + ' of ' + t.items.length + ' lines won'}</span></div>
-                    {s === 'wait' ? <button className="demo" disabled={drawing} onClick={e => { e.stopPropagation(); onDemo(t) }}>Demo result</button> : null}
+                    {onDemo && s === 'wait' ? <button className="demo" disabled={drawing} onClick={e => { e.stopPropagation(); onDemo(t) }}>Demo result</button> : null}
                     <div className="bt-tot"><small>{s === 'wait' ? 'WIN UP TO' : w ? 'YOU WON' : 'RESULT'}</small><b>{s === 'wait' ? inr(top) : w ? inr(w) : 'No win'}</b></div>
                   </div>
                 </div>

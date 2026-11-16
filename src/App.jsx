@@ -11,6 +11,7 @@ import { useAnimatedNumber, useNow, useStateRef } from './hooks/hooks.js'
 import useMachine from './hooks/useMachine.js'
 import useSkies from './hooks/useSkies.js'
 import { CLOSE, PRICE, current, dayKey, hrs, inr, ist, latestSlot, lbl, past, perms, resolveShow, resultOf, settle, sh12, slotKey, wait } from './lib/lottery.js'
+import { api, isLive } from './lib/api.js'
 
 const TTL = { res: 'Result', play: 'Pick numbers', tix: 'My tickets' }, IDX = { home: 0, res: 1, play: 2, tix: 3 }
 const NONE = [null, null, null]
@@ -43,22 +44,64 @@ export default function App({ user = 'player@example.com', onLogout }) {
   const [cart, setCart, cartRef] = useStateRef([])           // [{pos, v, q, price}]
   const [bump, setBump] = useState(0)
   // ---- wallet ----
-  const [wallet, setWallet, walletRef] = useStateRef(1000)
+  const [wallet, setWallet, walletRef] = useStateRef(isLive ? 0 : 1000)
   const [held, setHeld] = useState(0)                        // wins waiting for owner approval
   const [hit, setHit] = useState(0)
   const [recharges, setRecharges] = useState([])             // UPI recharge requests: {id, amt, utr, status}
   const walletShown = useAnimatedNumber(wallet)
   // ---- ticket and result ----
   const [order, setOrder] = useState(null)                   // the ticket just paid (for the receipt)
-  const [tickets, setTickets, ticketsRef] = useStateRef(sampleTickets)   // every booked ticket, newest first
+  const [tickets, setTickets, ticketsRef] = useStateRef(isLive ? [] : sampleTickets)   // every booked ticket, newest first
   const [published, setPublished] = useState({})             // results published in this session (demo), by slot
   const [rsel, setRsel] = useState(latestSlot)               // slot shown in the result domes: {day, lot, h}
   const [drawing, setDrawing, drawingRef] = useStateRef(false)
   const holdRef = useRef(new Set())                          // slots whose ball-drop is still playing
   // ---- overlays ----
   const [sheet, setSheet] = useState(null)                   // 'w' wallet, 'p' profile, 'r' refer & earn
-  // referral code this player joined with (one per account). TODO(backend): store on the server, not on the phone
   const [refUsed, setRefUsed] = useState(() => { try { return localStorage.getItem('l3ref:' + user) || '' } catch { return '' } })
+
+  useEffect(() => {
+    if (!isLive) return
+    api('me').then(res => {
+      if (res.user) {
+        setWallet(res.user.wallet || 0)
+        setHeld(res.user.held || 0)
+        if (res.user.ref_used) setRefUsed(res.user.ref_used)
+      }
+    }).catch(() => {})
+    api('tickets').then(res => {
+      if (res.tickets) {
+        setTickets(res.tickets.map(t => {
+          const resVal = t.result || ''
+          const s = settle(t.items || [], resVal)
+          return {
+            id: t.code,
+            lot: t.lot,
+            h: t.h,
+            day: t.day,
+            time: lbl(t.h),
+            items: t.items || [],
+            t: t.total,
+            status: t.status === 'booked' ? 'wait' : 'done',
+            res: resVal,
+            won: t.won || s.tot,
+            held: t.held || s.held,
+            ...s
+          }
+        }))
+      }
+    }).catch(() => {})
+    api('recharges').then(res => {
+      if (res.recharges) setRecharges(res.recharges.map(r => ({ id: r.id, amt: r.amount, utr: r.utr, status: r.status })))
+    }).catch(() => {})
+    api('results').then(res => {
+      if (res.results) {
+        const p = {}
+        res.results.forEach(r => { p[slotKey(r.day, r.lot, r.h)] = r.digits })
+        setPublished(p)
+      }
+    }).catch(() => {})
+  }, [user])
   const [rcpt, setRcpt] = useState(false)
   const [toastS, setToastS] = useState({ m: '', on: false }), toastT = useRef()
   const [led, setLed] = useState(null), [machSpin, setMachSpin] = useState(false)
@@ -112,16 +155,28 @@ export default function App({ user = 'player@example.com', onLogout }) {
       setBump(b => b + 1)
     }, 520)
   }
-  const pay = () => {
+  const pay = async () => {
     const items = cartRef.current, t = items.reduce((a, x) => a + x.q * x.price, 0)
     if (!items.length) return toast('Add a number first')
     if (show.left <= CLOSE) return toast('Booking is closed for ' + lbl(show.d.h))
     if (walletRef.current < t) { toast('Low balance. Add money to continue.'); return setSheet('w') }
-    // TODO(backend): place the order on the server. Money leaves the wallet with no confirmation step.
-    changeWallet(walletRef.current - t)
-    const tk = { id: 'L3-' + (Date.now() % 1e6), lot: show.d.lot, h: show.d.h, day: dayKey(0), time: lbl(show.d.h), items, t, status: 'wait' }
-    setTickets([tk, ...ticketsRef.current]); setOrder(tk)
-    setCart([]); setSheet(null); setRcpt(true)
+    if (isLive) {
+      try {
+        const res = await api('book', { lot: show.d.lot, h: show.d.h, items })
+        changeWallet(res.wallet)
+        const tk = { id: res.ticket.code, lot: res.ticket.lot, h: res.ticket.h, day: res.ticket.day, time: lbl(res.ticket.h), items: res.ticket.items, t: res.ticket.total, status: 'wait' }
+        setTickets([tk, ...ticketsRef.current]); setOrder(tk)
+        setCart([]); setSheet(null); setRcpt(true)
+      } catch (err) {
+        toast(err.message || 'Booking failed')
+        if (err.data?.need_recharge) setSheet('w')
+      }
+    } else {
+      changeWallet(walletRef.current - t)
+      const tk = { id: 'L3-' + (Date.now() % 1e6), lot: show.d.lot, h: show.d.h, day: dayKey(0), time: lbl(show.d.h), items, t, status: 'wait' }
+      setTickets([tk, ...ticketsRef.current]); setOrder(tk)
+      setCart([]); setSheet(null); setRcpt(true)
+    }
   }
 
   // ---------- results and settlement ----------
@@ -196,11 +251,11 @@ export default function App({ user = 'player@example.com', onLogout }) {
       {/* three floors of one machine; the camera slides between them */}
       <div id="world"><div className="cam" style={{ transform: `translateY(-${IDX[st] * 25}%)` }}>
         <Home liveRef={liveRef} led={led} machSpin={machSpin} onShake={shake} onPlay={() => { setSel(null); go('play') }} onPick={pickShow} />
-        <Result tickets={tickets} published={published} rsel={rsel} drawing={drawing} onSelect={setRsel} onDemo={demoPublish} />
+        <Result tickets={tickets} published={published} rsel={rsel} drawing={drawing} onSelect={setRsel} onDemo={isLive ? null : demoPublish} />
         <Play show={show} mode={mode} tubes={tubes} shown={shown} target={target} qty={qty} cart={cart} bump={bump} glassRefs={glassRefs} btRef={btRef}
           onMode={pickMode} onBall={pickBall} onTube={tapTube} onQty={d => setQty(q => Math.min(99, Math.max(1, q + d)))} onAdd={addLines}
           onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onTicket={() => go('tix')} />
-        <Tickets cart={cart} tickets={tickets} show={show} drawing={drawing} onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onOpen={openTicket} onDemo={demoPublish} onPlay={() => go('play')} />
+        <Tickets cart={cart} tickets={tickets} show={show} drawing={drawing} onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onOpen={openTicket} onDemo={isLive ? null : demoPublish} onPlay={() => go('play')} />
       </div></div>
 
       {/* bottom bar: the picture is the bar, these are the tap areas */}
@@ -216,18 +271,41 @@ export default function App({ user = 'player@example.com', onLogout }) {
 
       <div className={'sheet tall' + (sheet === 'w' ? ' on' : '')}>
         <Wallet shown={walletShown} held={held} recharges={recharges} toast={toast}
-          onRequest={(amt, utr) => { setRecharges(r => [{ id: Date.now(), amt, utr, status: 'pending' }, ...r]); toast('Payment sent for checking') }}
-          onConfirm={id => {
-            // TODO(backend): the server credits the wallet once the payment is confirmed (gateway webhook or owner approval).
+          onRequest={async (amt, utr) => {
+            if (isLive) {
+              try {
+                const res = await api('recharge', { amount: amt, utr })
+                setRecharges(r => [{ id: res.id, amt, utr, status: 'pending' }, ...r])
+                toast('Payment sent for checking')
+              } catch (err) {
+                toast(err.message || 'Could not send recharge')
+              }
+            } else {
+              setRecharges(r => [{ id: Date.now(), amt, utr, status: 'pending' }, ...r])
+              toast('Payment sent for checking')
+            }
+          }}
+          onConfirm={isLive ? null : id => {
             const r = recharges.find(x => x.id === id); if (!r || r.status !== 'pending') return
             setRecharges(rs => rs.map(x => x.id === id ? { ...x, status: 'added' } : x)); changeWallet(walletRef.current + r.amt); toast(inr(r.amt) + ' added to wallet')
           }} />
       </div>
 
       <div className={'sheet tall' + (sheet === 'r' ? ' on' : '')}>
-        <Refer user={user} redeemed={refUsed} toast={toast} onRedeem={c => {
-          try { localStorage.setItem('l3ref:' + user, c) } catch { /* private mode */ }
-          setTimeout(() => { setRefUsed(c); changeWallet(walletRef.current + BONUS); toast('₹' + BONUS + ' referral bonus added to wallet') }, 900)
+        <Refer user={user} redeemed={refUsed} toast={toast} onRedeem={async c => {
+          if (isLive) {
+            try {
+              await api('redeem_ref', { code: c })
+              setRefUsed(c)
+              changeWallet(walletRef.current + BONUS)
+              toast('₹' + BONUS + ' referral bonus added to wallet')
+            } catch (err) {
+              toast(err.message || 'Could not redeem code')
+            }
+          } else {
+            try { localStorage.setItem('l3ref:' + user, c) } catch { /* private mode */ }
+            setTimeout(() => { setRefUsed(c); changeWallet(walletRef.current + BONUS); toast('₹' + BONUS + ' referral bonus added to wallet') }, 900)
+          }
         }} />
       </div>
 

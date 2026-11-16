@@ -50,7 +50,7 @@ export default function Result({ tickets, published, rsel, drawing, onSelect, on
             <div className="tot"><span>{t.tot ? 'Added to wallet' : 'No instant win this time'}</span><b>{inr(t.tot)}</b></div>
             {t.held > 0 && <div className="hold">{inr(t.held)} is waiting for owner approval before it reaches your wallet.</div>}
           </> : (
-            <div className="twait"><span>{t.id} · waiting for the result</span><button className="demo" disabled={drawing} onClick={() => onDemo(t)}>Publish demo result</button></div>
+            <div className="twait"><span>{t.id} · waiting for the result</span>{onDemo && <button className="demo" disabled={drawing} onClick={() => onDemo(t)}>Publish demo result</button>}</div>
           )}
         </div>
       ))}
