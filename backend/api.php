@@ -147,11 +147,20 @@ try {
   // ================= owner portal =================
   case 'admin_overview': {
     user('admin');
+    require_once __DIR__ . '/fetch.php';
     out(['ok' => true,
       'recharges' => q("SELECT r.id, r.amount, r.utr, r.created_at, u.email FROM recharges r JOIN users u ON u.id = r.user_id WHERE r.status = 'pending' ORDER BY r.id")->fetchAll(),
       'big_wins'  => q("SELECT b.id, b.amount, b.created_at, u.email, t.code, t.lot, t.h, t.day FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id WHERE b.status = 'pending' ORDER BY b.id")->fetchAll(),
       'results'   => q('SELECT day, lot, h, digits FROM results WHERE day >= CURDATE() - INTERVAL 1 DAY ORDER BY day DESC, h DESC')->fetchAll(),
-      'lots' => LOTS]);
+      'lots'      => LOTS,
+      'auto'      => get_auto_status()]);
+  }
+
+  case 'admin_fetch': {
+    user('admin');
+    require_once __DIR__ . '/fetch.php';
+    $rows = run_auto_fetch(true);
+    out(['ok' => true, 'rows' => $rows]);
   }
 
   case 'admin_recharge': {   // {id, approve: true|false}

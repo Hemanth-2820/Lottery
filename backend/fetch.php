@@ -8,10 +8,11 @@ require_once __DIR__ . '/lib.php';
 date_default_timezone_set('Asia/Kolkata');
 
 const FETCH_KEY = 'murugan-fetch-2026';   // needed only when opening fetch.php in a browser
-$cli = PHP_SAPI === 'cli';
-if (!$cli && ($_GET['key'] ?? '') !== FETCH_KEY) { http_response_code(403); exit('no'); }
-$test = !$cli && isset($_GET['test']);
-header('Content-Type: text/plain; charset=utf-8');
+
+// Auto-migrate table if src and full_no columns don't exist yet
+try {
+  db()->exec("ALTER TABLE results ADD src VARCHAR(10) NOT NULL DEFAULT 'manual', ADD full_no VARCHAR(20) NULL");
+} catch (Throwable $e) {}
 
 // which website gives which draw  [lottery, hour, url, reader]
 $SRC = [
@@ -26,32 +27,34 @@ $SRC = [
   ['Dear',      20, 'https://dearlottery.in/result-today-8pm', 'dear'],
 ];
 
-$day = $_GET['day'] ?? date('Y-m-d');           // ?day=2026-11-15 lets you test an old day
+$day = $_GET['day'] ?? date('Y-m-d');
 $ts = strtotime($day);
 $cache = [];
 
 function get(string $url): string {
   global $cache; if (isset($cache[$url])) return $cache[$url];
   $c = curl_init($url);
-  curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 25,
+  curl_setopt_array($c, [
+    CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 25,
     CURLOPT_USERAGENT => 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
-    CURLOPT_HTTPHEADER => ['Accept-Language: en-IN,en;q=0.9', 'Cache-Control: no-cache']]);
+    CURLOPT_HTTPHEADER => ['Accept-Language: en-IN,en;q=0.9', 'Cache-Control: no-cache']
+  ]);
   $h = (string)curl_exec($c); curl_close($c);
   return $cache[$url] = $h;
 }
-function text(string $html): string {           // page -> plain text on one line
+
+function text(string $html): string {
   $html = preg_replace('#<(script|style|noscript)[^>]*>.*?</\1>#si', ' ', $html);
   $t = html_entity_decode(strip_tags(preg_replace('#<(br|/td|/th|/tr|/p|/div|/li|/h\d)[^>]*>#i', ' ', $html)), ENT_QUOTES, 'UTF-8');
   return trim(preg_replace('/\s+/u', ' ', $t));
 }
 
 // ---------- readers: each returns the full winning number for that draw, or null ----------
-// Goa Queen result.php rows look like: 2026-11-16 12:00 C4481   (05:00 = 5 PM, 07:00 = 7 PM)
 function r_goa(string $html, int $h): ?string {
   global $day; $t = text($html); $hh = sprintf('%02d:00', $h > 12 ? $h - 12 : $h);
   return preg_match('/' . preg_quote($day) . '\s+' . $hh . '\s+([A-Z]?\s?\d{4,6})\b/', $t, $m) ? $m[1] : null;
 }
-// dearlottery.in: today's date "16/11/26" then the 1st prize "50K 84009"
+
 function r_dear(string $html, int $h): ?string {
   global $ts; $t = text($html);
   foreach ([date('d/m/y', $ts), date('d/m/Y', $ts), date('d-m-Y', $ts), date('d.m.Y', $ts)] as $d) {
@@ -60,7 +63,7 @@ function r_dear(string $html, int $h): ?string {
   }
   return null;
 }
-// goodreturns pages: find today's date written in words, take the first ticket number after it
+
 function r_near(string $html, int $h): ?string {
   global $ts; $t = text($html);
   $dates = [date('j F Y', $ts), date('d F Y', $ts), date('F j, Y', $ts), date('d-m-Y', $ts), date('d/m/Y', $ts), date('j M Y', $ts), date('d M Y', $ts)];
@@ -75,7 +78,7 @@ function r_near(string $html, int $h): ?string {
   }
   return null;
 }
-// goodreturns Kerala chart: table with Date rows 1..31 and month columns JAN..DEC
+
 function r_kerala(string $html, int $h): ?string {
   global $ts; $doc = new DOMDocument(); libxml_use_internal_errors(true); $doc->loadHTML($html);
   $mon = strtoupper(date('M', $ts)); $dnum = (int)date('j', $ts);
@@ -90,13 +93,8 @@ function r_kerala(string $html, int $h): ?string {
       $v = $cells[$col] ?? ''; return preg_match('/\d{6}/', $v, $m) ? $m[0] : null;
     }
   }
-  return r_near($html, $h);   // fallback: a sentence on the page
+  return r_near($html, $h);
 }
-
-// Auto-migrate table if src and full_no columns don't exist yet
-try {
-  db()->exec("ALTER TABLE results ADD src VARCHAR(10) NOT NULL DEFAULT 'manual', ADD full_no VARCHAR(20) NULL");
-} catch (Throwable $e) {}
 
 // ---------- publish = same as the admin Publish button: save result, pay every ticket ----------
 function publish(string $day, string $lot, int $h, string $d, string $full = ''): string {
@@ -104,7 +102,6 @@ function publish(string $day, string $lot, int $h, string $d, string $full = '')
   try {
     q('INSERT INTO results (day, lot, h, digits, src, full_no) VALUES (?,?,?,?,?,?)', [$day, $lot, $h, $d, 'auto', $full]);
   } catch (PDOException $e) {
-    // Fallback if schema doesn't have src/full_no
     try {
       q('INSERT INTO results (day, lot, h, digits) VALUES (?,?,?,?)', [$day, $lot, $h, $d]);
     } catch (PDOException $e2) {
@@ -124,16 +121,80 @@ function publish(string $day, string $lot, int $h, string $d, string $full = '')
   return "PUBLISHED, tickets $n, paid ₹$paid, waiting approval ₹$held";
 }
 
-echo "Results for $day  (" . date('H:i') . ")\n\n";
-foreach ($SRC as [$lot, $h, $url, $reader]) {
-  $name = str_pad("$lot " . date('g A', mktime($h, 0)), 16);
-  if (q('SELECT 1 FROM results WHERE day = ? AND lot = ? AND h = ?', [$day, $lot, $h])->fetch()) { echo "$name already published\n"; continue; }
-  if ($day === date('Y-m-d') && time() < strtotime("$day $h:00") + 5 * 60) { echo "$name not yet (waits till 5 min after draw)\n"; continue; }
-  $html = get($url);
-  if ($html === '') { echo "$name website did not open\n"; continue; }
-  $full = ('r_' . $reader)($html, $h);
-  if (!$full) { echo "$name no result on the website yet\n"; continue; }
-  $digits = substr(preg_replace('/\D/', '', $full), -3);   // LAST 3 DIGITS
-  if (strlen($digits) !== 3) { echo "$name could not read: $full\n"; continue; }
-  echo "$name website: $full  ->  result $digits  " . ($test ? '(test, not published)' : publish($day, $lot, $h, $digits, $full)) . "\n";
+function get_auto_status(): array {
+  global $SRC;
+  $at = @file_get_contents(__DIR__ . '/.last_fetch') ?: (q("SELECT published_at FROM results WHERE src = 'auto' ORDER BY id DESC LIMIT 1")->fetchColumn() ?: null);
+  $today = date('Y-m-d');
+  $rows = [];
+  foreach ($SRC as [$lot, $h, $url, $reader]) {
+    $host = parse_url($url, PHP_URL_HOST);
+    $r = q('SELECT digits, full_no FROM results WHERE day = ? AND lot = ? AND h = ?', [$today, $lot, $h])->fetch();
+    if ($r) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $r['full_no'], 'digits' => $r['digits'], 'state' => 'done'];
+    } elseif (time() < strtotime("$today $h:00") + 300) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'wait'];
+    } else {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'miss'];
+    }
+  }
+  return ['at' => $at, 'rows' => $rows];
+}
+
+function run_auto_fetch(bool $publish = true): array {
+  global $SRC, $cache;
+  @file_put_contents(__DIR__ . '/.last_fetch', date('Y-m-d H:i:s'));
+  $today = date('Y-m-d');
+  $rows = [];
+  foreach ($SRC as [$lot, $h, $url, $reader]) {
+    $host = parse_url($url, PHP_URL_HOST);
+    $existing = q('SELECT digits, full_no FROM results WHERE day = ? AND lot = ? AND h = ?', [$today, $lot, $h])->fetch();
+    if ($existing) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $existing['full_no'], 'digits' => $existing['digits'], 'state' => 'done'];
+      continue;
+    }
+    if (time() < strtotime("$today $h:00") + 300) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'wait'];
+      continue;
+    }
+    $html = get($url);
+    if ($html === '') {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'err', 'msg' => 'Website did not open'];
+      continue;
+    }
+    $full = ('r_' . $reader)($html, $h);
+    if (!$full) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => null, 'digits' => null, 'state' => 'miss'];
+      continue;
+    }
+    $digits = substr(preg_replace('/\D/', '', $full), -3);
+    if (strlen($digits) !== 3) {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $full, 'digits' => null, 'state' => 'err', 'msg' => 'Bad number: ' . $full];
+      continue;
+    }
+    if ($publish) {
+      publish($today, $lot, $h, $digits, $full);
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $full, 'digits' => $digits, 'state' => 'new'];
+    } else {
+      $rows[] = ['lot' => $lot, 'h' => $h, 'site' => $host, 'full' => $full, 'digits' => $digits, 'state' => 'found'];
+    }
+  }
+  return $rows;
+}
+
+// Standalone execution (cPanel Cron Job or test URL)
+$cli = PHP_SAPI === 'cli';
+$direct_run = $cli || (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === realpath(__FILE__));
+
+if ($direct_run) {
+  if (!$cli && ($_GET['key'] ?? '') !== FETCH_KEY) { http_response_code(403); exit('no'); }
+  $test = !$cli && isset($_GET['test']);
+  header('Content-Type: text/plain; charset=utf-8');
+  $rows = run_auto_fetch(!$test);
+  echo "Auto Results for $day  (" . date('H:i') . ")\n\n";
+  foreach ($rows as $r) {
+    $name = str_pad($r['lot'] . " " . date('g A', mktime($r['h'], 0)), 16);
+    $full = $r['full'] ? "website: {$r['full']} -> {$r['digits']} " : "";
+    $msg = isset($r['msg']) ? " ({$r['msg']})" : "";
+    echo "{$name} {$full}state: {$r['state']}{$msg}\n";
+  }
 }
