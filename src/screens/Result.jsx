@@ -27,7 +27,7 @@ export default function Result({ tickets, published, rsel, drawing, onSelect, on
       </div>
       <div className="rcap">
         <b style={{ color: LOTC[rsel.lot] }}>{rsel.lot.toUpperCase()}</b> · {lbl(rsel.h)} · {dayName(selOff)}
-        <small>{res ? 'Result ' + [...res].join(' ') + (published[sk] ? ' (demo)' : '') : 'Result not out yet. Draw at ' + lbl(rsel.h)}</small>
+        <small>{res ? 'Result ' + [...res].join(' ') : 'Result not out yet. Draw at ' + lbl(rsel.h)}</small>
       </div>
 
       {/* the player's tickets for this slot, checked line by line under A, B, C */}
@@ -66,7 +66,7 @@ export default function Result({ tickets, published, rsel, drawing, onSelect, on
               <span className="rst">{s.h > 12 ? s.h - 12 : s.h}<small>{s.h >= 12 ? 'PM' : 'AM'}</small></span>
               <span className="rsm">
                 <b>{s.lot}</b>
-                <small>{r ? 'Result out' + (published[slotKey(day, s.lot, s.h)] ? ' (demo)' : '') : left <= CLOSE ? 'Booking closed · result soon' : 'Result at ' + lbl(s.h) + ' · in ' + hms(left)}</small>
+                <small>{r ? 'Result out' : left <= CLOSE ? 'Booking closed · result soon' : 'Result at ' + lbl(s.h) + ' · in ' + hms(left)}</small>
                 {my.length > 0 && <em className={waiting ? 'g' : won ? 'w' : ''}>{waiting ? 'YOUR TICKET · WAITING' : won ? 'YOU WON ' + inr(won) : 'YOUR TICKET · NO WIN'}</em>}
               </span>
               <span className="rsb">

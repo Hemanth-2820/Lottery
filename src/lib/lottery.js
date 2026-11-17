@@ -101,7 +101,7 @@ export const LIVE_RESULTS = true
 // result of one slot, or null if it is not out yet. `published` holds results published during this session (demo).
 export function resultOf(day, lot, h, published = {}) {
   const p = published[slotKey(day, lot, h)]; if (p) return p
-  if (LIVE_RESULTS) return null
+  if (LIVE_RESULTS || import.meta.env.VITE_API_URL) return null   // live app: ONLY real results from the server, never made-up ones
   const today = dayKey(0)
   return day < today || (day === today && h <= hrs()) ? past(h, lot, day) : null
 }
