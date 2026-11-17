@@ -1,81 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { LG } from '../art.js'
 import { LIVE, api, setToken } from '../lib/api.js'
-import Sphere3D from '../components/Sphere3D.jsx'
 import './login.css'
 
-// Murugan design dimensions (941 x 1670)
-const A = import.meta.env.BASE_URL ? (import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL + 'art/' : import.meta.env.BASE_URL + '/art/') : '/art/'
-const BG = A + 'mg3-bg.webp'
-const W = 941, H = 1670
-const at = (x, y, w, h) => ({ position: 'absolute', left: (x / W * 100) + '%', top: (y / H * 100) + '%', width: (w / W * 100) + '%', height: (h / H * 100) + '%' })
+// Murugan sign-in, built from separate pieces so every part can move:
+// glowing stage background with light rays and sparkles, Lord Murugan header floating,
+// the 5 lottery cards popping in, the "Murugan Lucky Draw" badge with floating balls,
+// and a real glass login card (email -> 6-digit code shown as lottery balls).
+const A = import.meta.env.BASE_URL + 'art/'
+const CARDS = ['dear', 'kerala', 'goa', 'sikkim', 'punjab']
+const BALLS = [[3, '6%', '8%', 2.4], [7, '84%', '4%', 2.9], [2, '0%', '58%', 3.2], [5, '88%', '56%', 2.6]]   // [number, left, top, seconds]
+const SPARK = [...Array(26)].map((_, i) => ({ '--x': (i * 37 + 7) % 100 + '%', '--t': 5 + (i * 13) % 6 + 's', '--dl': -((i * 29) % 90) / 10 + 's', '--s': 2 + (i * 7) % 3 + 'px' }))
 const mask = e => { const [n, d] = e.split('@'); return n[0] + '***@' + d }
 
-// 4 Outer floating 3D balls (Pink 3, Red 3, Blue 2, Yellow 5)
-const FLOAT = [[3, 218, 813, 33, 2.2], [3, 115, 950, 35, 2.8], [2, 728, 812, 33, 2.5], [5, 826, 958, 35, 3]]
-
-// Sparkling magical dust particles
-const SPARKLES = [
-  { x: '46%', s: '5px', t: '2.5s', dl: '0s', dx: '-15px' },
-  { x: '52%', s: '4px', t: '3.1s', dl: '0.4s', dx: '20px' },
-  { x: '40%', s: '6px', t: '2.8s', dl: '0.8s', dx: '-30px' },
-  { x: '58%', s: '4px', t: '3.4s', dl: '1.2s', dx: '25px' },
-  { x: '48%', s: '5px', t: '2.2s', dl: '0.2s', dx: '-10px' },
-  { x: '35%', s: '4px', t: '3.0s', dl: '1.5s', dx: '-22px' },
-  { x: '62%', s: '5px', t: '2.7s', dl: '0.6s', dx: '18px' },
-  { x: '30%', s: '4px', t: '3.2s', dl: '1.0s', dx: '-35px' },
-  { x: '68%', s: '6px', t: '2.6s', dl: '1.8s', dx: '30px' },
-  { x: '50%', s: '4px', t: '3.5s', dl: '0.3s', dx: '5px' },
-]
-
-function Burst({ k }) {
-  const ref = useRef()
+// firework of gold glitter when the code is right
+function Burst() {
+  const ref = useRef(null)
   useEffect(() => {
-    const cv = ref.current; if (!cv) return
-    const w = cv.width = Math.round(820 * k), h = cv.height = Math.round(640 * k)
-    const g = cv.getContext('2d')
-    const cols = ['#ffd23f', '#ff2dd0', '#00e5ff', '#ff5a36', '#ffffff', '#76ff03']
-    const pts = Array.from({ length: 70 }, () => {
-      const a = Math.random() * Math.PI * 2, sp = (Math.random() * 8 + 3) * k
-      return {
-        x: w / 2, y: h / 2,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp - 2 * k,
-        r: (Math.random() * 4 + 2) * k,
-        c: cols[(Math.random() * cols.length) | 0],
-        alpha: 1,
-        life: Math.random() * 0.4 + 0.6
-      }
-    })
-    let raf, last = performance.now()
-    const loop = now => {
-      const dt = Math.min(0.05, (now - last) / 1000)
-      last = now
-      g.clearRect(0, 0, w, h)
-      let alive = false
-      for (const p of pts) {
-        if (p.alpha <= 0) continue
-        alive = true
-        p.x += p.vx * dt * 60
-        p.y += p.vy * dt * 60
-        p.vy += 4.5 * k * dt * 60
-        p.alpha -= dt / p.life
-        g.save()
-        g.globalAlpha = Math.max(0, p.alpha)
-        g.fillStyle = p.c
-        g.shadowColor = p.c
-        g.shadowBlur = 8 * k
-        g.beginPath()
-        g.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        g.fill()
-        g.restore()
-      }
-      if (alive) raf = requestAnimationFrame(loop)
+    const c = ref.current, x = c.getContext('2d'), D = Math.min(devicePixelRatio || 1, 2)
+    const W = c.clientWidth, H = c.clientHeight; c.width = W * D; c.height = H * D; x.scale(D, D)
+    const cols = ['#fff6c2', '#ffd23f', '#ff9a1f', '#ff4fd8', '#5ef0ff', '#ffffff'], P = []
+    for (let i = 0; i < 180; i++) { const a = Math.random() * 7, v = 2 + Math.random() * 7; P.push({ x: W / 2, y: H / 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1, l: 1, d: .012 + Math.random() * .015, r: 1 + Math.random() * 2, c: cols[i % 6] }) }
+    let raf
+    const loop = () => {
+      x.globalCompositeOperation = 'destination-out'; x.fillStyle = 'rgba(0,0,0,.3)'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'lighter'
+      let alive = 0
+      for (const p of P) { if (p.l <= 0) continue; alive++; p.vx *= .96; p.vy = p.vy * .96 + .08; p.x += p.vx; p.y += p.vy; p.l -= p.d
+        x.globalAlpha = p.l * .3; x.fillStyle = p.c; x.beginPath(); x.arc(p.x, p.y, p.r * 2.5, 0, 7); x.fill(); x.globalAlpha = p.l; x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill() }
+      x.globalAlpha = 1; if (alive) raf = requestAnimationFrame(loop)
     }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [k])
-  return <canvas ref={ref} className="m3-burst" />
+    raf = requestAnimationFrame(loop); return () => cancelAnimationFrame(raf)
+  }, [])
+  return <canvas ref={ref} className="mg-burst" />
 }
 
 export default function Login({ onLogin }) {
@@ -83,23 +38,6 @@ export default function Login({ onLogin }) {
   const [code, setCode] = useState(''), [otp, setOtp] = useState(''), [state, setState] = useState('')
   const [left, setLeft] = useState(0), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
   const otpRef = useRef(), tm = useRef()
-
-  // Fit the picture to the phone screen
-  const fit = () => {
-    const sw = Math.min(window.innerWidth, 480), sh = window.innerHeight
-    let w = sw / 0.92, h = w * H / W
-    if (h < sh) h = Math.min(sh, h * 1.12)
-    if (h > sh) { const f = sh / h; h = sh; w *= f }
-    return { w, h, k: w / W }
-  }
-  const [box, setBox] = useState(fit)
-  useEffect(() => {
-    const r = () => setBox(fit())
-    window.addEventListener('resize', r)
-    return () => window.removeEventListener('resize', r)
-  }, [])
-  const { k } = box
-
   const say = m => { setMsg(m); clearTimeout(tm.current); tm.current = setTimeout(() => setMsg(''), 2600) }
   useEffect(() => { if (left <= 0) return; const t = setTimeout(() => setLeft(l => l - 1), 1000); return () => clearTimeout(t) }, [left])
 
@@ -112,134 +50,63 @@ export default function Login({ onLogin }) {
     setBusy(true)
     api('send_otp', { email: em }).then(r => go(r.dev_code || ''), x => say(x.message)).finally(() => setBusy(false))
   }
-
   const type = v => {
     if (state === 'ok') return
     v = v.replace(/\D/g, '').slice(0, 6); setOtp(v); setState('')
     if (v.length < 6) return
-    const good = () => { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 1400) }
+    const good = () => { setState('ok'); otpRef.current?.blur(); setTimeout(() => onLogin(email.trim().toLowerCase()), 2600) }
     const bad = m => { setState('bad'); say(m || 'Wrong code. Try again.'); setTimeout(() => { setOtp(''); setState('') }, 700) }
     if (!LIVE) return v === code ? good() : bad()
     api('verify_otp', { email: email.trim(), code: v }).then(r => { setToken(r.token); good() }, x => bad(x.message))
   }
 
   return (
-    <div id="mg3" style={{ '--k': k }}>
-      <div className="m3-fill" style={{ backgroundImage: `url(${BG})` }} />
-      <div className="m3-stage" style={{ width: box.w, height: box.h }}>
-        <img className="m3-bg" src={BG} alt="Murugan" />
-        <div className="m3-halo" style={at(472 - 250, 240, 500, 500)} />
-        <div className="m3-plate" style={at(100, 720, 741, 380)} />
-        {LG.cards.map((_, i) => (
-          <div key={i} className="m3-shine" style={{ ...at(52 + i * 171, 628, 156, 138), '--i': i }} />
-        ))}
+    <div id="mgl">
+      <div className="mg-sky" />
+      <div className="mg-rays" />
+      <div className="mg-streak l" /><div className="mg-streak r" />
+      <div className="mg-spark">{SPARK.map((s, i) => <i key={i} style={s} />)}</div>
 
-        {/* Murugan Lucky Draw badge in the middle: soft golden glow pulse */}
-        <div className="m3-badge" style={at(230, 750, 480, 340)} />
-
-        {/* 4 Outer Floating 3D Balls */}
-        {FLOAT.map(([n, x, y, r, t], i) => (
-          <div
-            key={i}
-            className="m3-fl"
-            style={{
-              position: 'absolute',
-              left: (x / W * 100) + '%',
-              top: (y / H * 100) + '%',
-              width: ((r * 2) / W * 100) + '%',
-              aspectRatio: '1',
-              zIndex: 6,
-              pointerEvents: 'none',
-              transform: 'translate(-50%, -50%)',
-              '--i': i,
-              '--t': `${t}s`,
-            }}
-          >
-            <Sphere3D n={n} size={r * 2} speed={0.8} dir={i % 2 ? 1 : -1} tilt={0.3} />
-          </div>
-        ))}
-
-        {/* Magical Sparkles around the machine */}
-        <div className="m3-spark" style={{ zIndex: 7 }}>
-          {SPARKLES.map((s, i) => (
-            <i
-              key={i}
-              style={{
-                '--x': s.x,
-                '--s': s.s,
-                '--t': s.t,
-                '--dl': s.dl,
-                '--dx': s.dx,
-              }}
-            />
-          ))}
+      <div className="mg-col">
+        <div className="mg-hero">
+          <div className="mg-halo" />
+          <img src={A + 'mg-hero.webp'} alt="Lord Murugan" />
+          <div className="mg-gleam" />
         </div>
 
-        {step === 0 ? (
-          <form onSubmit={send} noValidate style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
-            <input
-              className="m3-email"
-              style={{ ...at(240, 1262, 460, 60), fontSize: Math.max(16, 30 * k) }}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="Enter your email address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              aria-label="Email"
-            />
-            <button className="m3-send" style={at(138, 1360, 662, 88)} disabled={busy} aria-label="Send Code">
-              <span>{busy ? 'Sending…' : 'Send Code >'}</span>
-            </button>
-          </form>
-        ) : (
-          <div
-            className={'m3-ticket' + (state === 'ok' ? ' ok-shake' : '')}
-            style={{ ...at(70, 1070, 800, 480), zIndex: 10 }}
-          >
-            <div className="m3-tk-top">
-              <span>LOTTERY TICKET</span>
-              <em>VERIFIED</em>
-            </div>
-            <h3>{state === 'ok' ? 'Lucky Code!' : 'Draw your code'}</h3>
-            <p>Sent to <b>{mask(email.trim())}</b> · <button type="button" className="lnk" onClick={() => setStep(0)}>Change</button></p>
-            <label className={'m3-otp ' + state}>
-              {[0, 1, 2, 3, 4, 5].map(i => (
-                <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''} style={{ '--i': i }}>
-                  {otp[i] !== undefined && otp[i] !== '' ? (
-                    <img src={LG.nums[otp[i]]} alt={otp[i]} />
-                  ) : null}
-                  <small>{i + 1}</small>
-                </span>
-              ))}
-              <input
-                ref={otpRef}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={otp}
-                onChange={e => type(e.target.value)}
-                aria-label="6-digit code"
-              />
-            </label>
-            {state === 'ok' && <Burst k={k} />}
-            {code ? (
-              <div className="m3-demo">{LIVE ? 'Test mode' : 'Demo'}: your code is <b>{code}</b></div>
-            ) : (
-              <div className="m3-demo">Check your email inbox (and Spam) for the code.</div>
-            )}
-            <div className="m3-tk-foot">
-              <small>
-                {left > 0 ? (
-                  'Send again in 0:' + String(left).padStart(2, '0')
-                ) : (
-                  <button type="button" className="lnk" onClick={() => send()}>Resend Code</button>
-                )}
-              </small>
-              <div className="m3-bar" />
-            </div>
-          </div>
-        )}
+        <div className="mg-cards">{CARDS.map((n, i) => <div key={n} className="mg-card" style={{ '--i': i }}><img src={A + 'mg-card-' + n + '.webp'} alt={n} /></div>)}</div>
+
+        <div className="mg-badge">
+          <div className="mg-bglow" />
+          <img src={A + 'mg-badge.webp'} alt="Murugan Lucky Draw" />
+          {BALLS.map(([n, x, y, t], i) => <img key={i} className="mg-ball" src={A + 'ball' + n + '.webp'} alt="" style={{ left: x, top: y, '--t': t + 's', '--i': i }} />)}
+        </div>
+
+        <div className={'mg-login' + (state === 'ok' ? ' win' : '')}>
+          <div className="mg-title"><span className="lf">❧</span><b>{step === 0 ? 'Login' : state === 'ok' ? 'Vetrivel!' : 'Enter code'}</b><span className="lf r">❧</span></div>
+          {step === 0 ? (
+            <form onSubmit={send} noValidate>
+              <p>Sign in with your email. We'll send you a 6-digit code.</p>
+              <label className="mg-field">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3.5 6.5 12 13l8.5-6.5" /></svg>
+                <input type="email" inputMode="email" autoComplete="email" placeholder="Enter your email address" value={email} onChange={e => setEmail(e.target.value)} aria-label="Email" />
+              </label>
+              <button className="mg-btn" disabled={busy}>{busy ? 'Sending…' : <>Send Code <span>›</span></>}</button>
+            </form>
+          ) : (
+            <>
+              <p>Sent to <b>{mask(email.trim())}</b> · <button type="button" className="mg-lnk" onClick={() => setStep(0)}>Change</button></p>
+              <label className={'mg-otp ' + state}>
+                {[0, 1, 2, 3, 4, 5].map(i => <span key={i} className={i === otp.length && state !== 'ok' ? 'cur' : ''}>{otp[i] !== undefined && <img key={otp[i] + i} src={A + 'ball' + otp[i] + '.webp'} alt={otp[i]} />}</span>)}
+                {state === 'ok' && <Burst />}
+                <input ref={otpRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={e => type(e.target.value)} aria-label="6-digit code" />
+              </label>
+              <p className="mg-small">Check your inbox (and Spam) for the code. {left > 0 ? 'Send again in 0:' + String(left).padStart(2, '0') : <button type="button" className="mg-lnk" onClick={() => send()}>Send the code again</button>}</p>
+            </>
+          )}
+          <div className="mg-foot"><i /><span>♛</span><i /></div>
+          <small className="mg-age">By continuing, you confirm you are 18+ or older.</small>
+        </div>
       </div>
       <div className={'toast' + (msg ? ' on' : '')}>{msg}</div>
     </div>
