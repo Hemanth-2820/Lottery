@@ -8,6 +8,8 @@ CREATE TABLE users (
   wallet DECIMAL(12,2) NOT NULL DEFAULT 0,
   ref_code VARCHAR(10) NOT NULL UNIQUE,
   referred_by INT NULL,
+  blocked TINYINT(1) NOT NULL DEFAULT 0,
+  block_note VARCHAR(160) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -32,11 +34,25 @@ CREATE TABLE sessions (
 CREATE TABLE txns (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  type ENUM('recharge','bet','win','bonus','refund') NOT NULL,
+  type ENUM('recharge','bet','win','bonus','refund','withdraw') NOT NULL,
   amount DECIMAL(12,2) NOT NULL,          -- + adds to wallet, - takes from it
   ref VARCHAR(64) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX (user_id), INDEX (created_at),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE withdrawals (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  upi VARCHAR(80) NOT NULL,
+  status ENUM('pending','paid','rejected') NOT NULL DEFAULT 'pending',
+  utr VARCHAR(40) NULL,
+  note VARCHAR(160) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  decided_at DATETIME NULL,
+  INDEX (user_id), INDEX (status),
   FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

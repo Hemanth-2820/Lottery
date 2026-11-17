@@ -2,12 +2,12 @@ import React, { Fragment, useEffect, useState } from 'react'
 import Ball from '../components/Ball.jsx'
 import { Led } from '../components/Clocks.jsx'
 import { MACH } from '../art.js'
-import { CLOSE, COL, DRAWS, GREY, LOTS, arc, closeLbl, hms, hrs, lbl, nextDraw, past, pt, sh12, skyElev, skyMode } from '../lib/lottery.js'
+import { CLOSE, COL, DRAWS, GREY, LOTS, PRICE, WIN, inr, arc, closeLbl, hms, hrs, lbl, nextDraw, past, pt, sh12, skyElev, skyMode } from '../lib/lottery.js'
 
 const PRIZES = (
   <>
-    <span><b>Single</b> ₹12 wins <em>₹100</em></span><span><b>Double</b> ₹12 wins <em>₹1,000</em></span>
-    <span><b>Triple</b> ₹30 wins <em>₹15,000</em></span><span>Booking closes <b>3 minutes</b> before every draw</span>
+    <span><b>Single</b> {inr(PRICE[0])} wins <em>{inr(WIN[0])}</em></span><span><b>Double</b> {inr(PRICE[1])} wins <em>{inr(WIN[1])}</em></span>
+    <span><b>Triple</b> {inr(PRICE[2])} wins <em>{inr(WIN[2])}</em></span><span>Booking closes <b>{Math.round(CLOSE / 60)} minutes</b> before every draw</span>
   </>
 )
 

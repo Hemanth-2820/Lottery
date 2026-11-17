@@ -611,3 +611,12 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 @media (prefers-reduced-motion:reduce){*{animation:none!important}.cam{transition:none}}
 #root{height:100%}
 
+
+/* wallet: add money / withdraw */
+.wtabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:14px 0 4px;border-radius:16px;background:rgba(0,0,0,.35);border:1px solid rgba(190,145,255,.35)}
+.wtabs button{height:40px;border-radius:12px;font:800 14px var(--disp,inherit);color:#e6d4ff;background:none;border:0}
+.wtabs .on{background:linear-gradient(135deg,#fff3b8,var(--amber));color:#2a1000;box-shadow:0 0 14px rgba(255,183,3,.5)}
+.wpend{margin-top:14px;padding:14px;border-radius:16px;background:rgba(18,201,122,.14);border:1px solid rgba(18,201,122,.5);display:flex;flex-direction:column;gap:4px;font-size:13px;color:#d9ffe9}
+.wpend>b{font-size:16px;color:#fff}
+.wask{margin-top:12px;padding:12px;border-radius:16px;background:rgba(155,77,255,.25);border:1px solid rgba(190,145,255,.6);font-size:14px}
+.wask div{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.wask .gl{padding:0 16px;border-radius:12px}

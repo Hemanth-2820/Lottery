@@ -39,6 +39,7 @@ function user(?string $role = null): array {
   if (!$t) fail('Please sign in', 401);
   $u = q('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > NOW()', [hash('sha256', $t)])->fetch();
   if (!$u) fail('Session expired. Please sign in again.', 401);
+  if (!empty($u['blocked'])) fail('Your account is blocked. Please contact support.', 403);
   if ($role === 'admin' && $u['role'] !== 'admin') fail('Owner only', 403);
   if ($role === 'analyst' && !in_array($u['role'], ['admin', 'analyst'], true)) fail('Analytics only', 403);
   return $u;

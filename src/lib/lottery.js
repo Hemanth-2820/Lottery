@@ -6,10 +6,11 @@ export const LOTS = [
   { k: 'Sikkim', h: [18] },
   { k: 'Goa Queen', h: [12, 17, 19] },
 ]
-export const CLOSE = 180            // booking closes this many seconds before a draw
+export let CLOSE = 180            // booking closes this many seconds before a draw
 export const PRICE = [12, 12, 30]   // Single, Double, Triple
 export const WIN = [100, 1000, 15000]
-export const APPROVAL = 15000       // wins of this size wait for owner approval
+export let APPROVAL = 15000       // wins of this size wait for owner approval
+export const LAST = [500, 50]       // Triple: last two digits / last digit match
 // TODO: put the owner's real UPI ID and display name here. Wallet recharges are paid to this ID.
 export const UPI = { id: 'yourupi@bank', name: 'Lucky3' }
 
@@ -58,7 +59,7 @@ export const current = (tubes, mode) => {
 export function lineWin(x, r) {
   const ix = [...x.pos].map(p => 'ABC'.indexOf(p)), hit = ix.map((k, j) => x.v[j] === r[k]); let w = 0
   if (x.pos.length < 3) { if (hit.every(Boolean)) w = x.pos.length === 1 ? WIN[0] : WIN[1] }
-  else w = hit.every(Boolean) ? WIN[2] : hit[1] && hit[2] ? 500 : hit[2] ? 50 : 0
+  else w = hit.every(Boolean) ? WIN[2] : hit[1] && hit[2] ? LAST[0] : hit[2] ? LAST[1] : 0
   return { hit, w: w * x.q }
 }
 
@@ -69,6 +70,21 @@ export const dayLabel = day => day === dayKey(0) ? 'Today' : day === dayKey(1) ?
 export const slotKey = (day, lot, h) => day + '|' + lot + '|' + h
 // the 9 slots of a day, in time order
 export const SLOTS = DRAWS.flatMap(d => LOTS.filter(l => l.h.includes(d.h)).map(l => ({ lot: l.k, h: d.h })))
+// Settings from the server (owner's admin Settings page). Arrays are changed in place so every screen sees them.
+const fill = (arr, items) => { arr.splice(0, arr.length, ...items) }
+export function applyConfig(c) {
+  if (!c) return
+  if (Array.isArray(c.lots) && c.lots.length) fill(LOTS, c.lots.map(l => ({ k: l.k, h: l.h.map(Number) })))
+  if (Array.isArray(c.price) && c.price.length === 3) fill(PRICE, c.price.map(Number))
+  if (Array.isArray(c.win) && c.win.length === 3) fill(WIN, c.win.map(Number))
+  if (Array.isArray(c.last) && c.last.length === 2) fill(LAST, c.last.map(Number))
+  if (c.close != null) CLOSE = +c.close
+  if (c.approval != null) APPROVAL = +c.approval
+  if (c.upi) Object.assign(UPI, c.upi)
+  fill(DRAWS, [...new Set(LOTS.flatMap(l => l.h))].sort((a, b) => a - b).map(h => ({ h, lot: LOTS.filter(l => l.h.includes(h)).map(l => l.k).join(' + ') })))
+  fill(SLOTS, DRAWS.flatMap(d => LOTS.filter(l => l.h.includes(d.h)).map(l => ({ lot: l.k, h: d.h }))))
+}
+
 export const LOTC = { Dear: '#ff3d6a', Kerala: '#19d48a', Punjab: '#ff9a1f', Sikkim: '#3d8bff', 'Goa Queen': '#d24dff' }
 
 // TODO(backend): sample result for a finished slot. Replace with the result the owner published for that slot.

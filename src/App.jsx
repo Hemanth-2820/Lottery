@@ -48,6 +48,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
   const [held, setHeld] = useState(0)                        // wins waiting for owner approval
   const [hit, setHit] = useState(0)
   const [recharges, setRecharges] = useState([])             // UPI recharge requests: {id, amt, utr, status}
+  const [withdrawals, setWithdrawals] = useState([])
   const walletShown = useAnimatedNumber(wallet)
   // ---- ticket and result ----
   const [order, setOrder] = useState(null)                   // the ticket just paid (for the receipt)
@@ -60,7 +61,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
   const [sheet, setSheet] = useState(null)                   // 'w' wallet, 'p' profile, 'r' refer & earn
   const [refUsed, setRefUsed] = useState(() => { try { return localStorage.getItem('l3ref:' + user) || '' } catch { return '' } })
 
-  useEffect(() => {
+  const refresh = () => {
     if (!isLive) return
     api('me').then(res => {
       if (res.user) {
@@ -94,6 +95,9 @@ export default function App({ user = 'player@example.com', onLogout }) {
     api('recharges').then(res => {
       if (res.recharges) setRecharges(res.recharges.map(r => ({ id: r.id, amt: r.amount, utr: r.utr, status: r.status })))
     }).catch(() => {})
+    api('withdrawals').then(res => {
+      if (res.withdrawals) setWithdrawals(res.withdrawals)
+    }).catch(() => {})
     api('results').then(res => {
       if (res.results) {
         const p = {}
@@ -101,6 +105,10 @@ export default function App({ user = 'player@example.com', onLogout }) {
         setPublished(p)
       }
     }).catch(() => {})
+  }
+
+  useEffect(() => {
+    refresh()
   }, [user])
   const [rcpt, setRcpt] = useState(false)
   const [toastS, setToastS] = useState({ m: '', on: false }), toastT = useRef()
@@ -270,7 +278,8 @@ export default function App({ user = 'player@example.com', onLogout }) {
       <div className={'shade' + (sheet || rcpt ? ' on' : '')} onClick={closeAll} />
 
       <div className={'sheet tall' + (sheet === 'w' ? ' on' : '')}>
-        <Wallet shown={walletShown} held={held} recharges={recharges} toast={toast}
+        <Wallet shown={walletShown} held={held} recharges={recharges} toast={toast} withdrawals={withdrawals}
+          onWithdraw={isLive ? (amount, upi) => api('withdraw', { amount, upi }).then(r => { changeWallet(r.wallet); toast(inr(amount) + ' withdrawal requested. The owner will send it to ' + upi); refresh() }, x => { toast(x.message); throw x }) : undefined}
           onRequest={async (amt, utr) => {
             if (isLive) {
               try {

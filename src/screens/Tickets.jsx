@@ -1,7 +1,7 @@
 import React, { Fragment, useState } from 'react'
 import { useAnimatedNumber } from '../hooks/hooks.js'
 import Ball from '../components/Ball.jsx'
-import { LOTC, dayLabel, hms, hrs, inr, lbl } from '../lib/lottery.js'
+import { APPROVAL, LOTC, dayLabel, hms, hrs, inr, lbl } from '../lib/lottery.js'
 
 const FILTERS = [['all', 'All'], ['wait', 'Waiting'], ['won', 'Won'], ['lost', 'No win']]
 const stateOf = t => t.status === 'wait' ? 'wait' : (t.tot || 0) + (t.held || 0) ? 'won' : 'lost'
@@ -93,7 +93,7 @@ export default function Tickets({ cart, tickets, show, drawing, onDel, onPay, on
           })}
         </Fragment>
       ))}
-      {tickets.some(t => t.held > 0) && <div className="note">Wins of ₹15,000 or more wait for owner approval before they reach the wallet.</div>}
+      {tickets.some(t => t.held > 0) && <div className="note">Wins of {inr(APPROVAL)} or more wait for owner approval before they reach the wallet.</div>}
     </section>
   )
 }

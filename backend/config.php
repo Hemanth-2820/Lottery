@@ -27,14 +27,17 @@ const SMTP_PASS      = '';
 // false = code only goes by email, never shown on screen
 const DEV_SHOW_OTP = false;
 
-// Game rules (must match the app)
-const LOTS     = ['Dear' => [13, 18, 20], 'Kerala' => [15], 'Punjab' => [17], 'Sikkim' => [18], 'Goa Queen' => [12, 17, 19]];
-const CLOSE    = 180;               // booking closes this many seconds before a draw
-const PRICE    = [1 => 12, 2 => 12, 3 => 30];   // Single, Double, Triple ticket price
-const WIN      = [1 => 100, 2 => 1000, 3 => 15000];
-const WIN_LAST2 = 500;              // Triple: last two digits match
-const WIN_LAST1 = 50;               // Triple: last digit matches
-const APPROVAL = 15000;             // wins of this size wait for owner approval
-const REF_BONUS = 100;              // new player gets this when they use a friend's code
-const UPI_ID   = 'yourupi@bank';
-const UPI_NAME = 'Murugan';
+// Game rules: the defaults are here. The owner can change them in the admin Settings page,
+// which saves them to settings.json next to this file. Anything in settings.json wins.
+$S = is_file(__DIR__ . '/settings.json') ? (json_decode((string)file_get_contents(__DIR__ . '/settings.json'), true) ?: []) : [];
+define('LOTS',      $S['lots']      ?? ['Dear' => [13, 18, 20], 'Kerala' => [15], 'Punjab' => [17], 'Sikkim' => [18], 'Goa Queen' => [12, 17, 19]]);
+define('CLOSE',     $S['close']     ?? 180);                          // booking closes this many seconds before a draw
+define('PRICE',     $S['price']     ?? [1 => 12, 2 => 12, 3 => 30]);  // Single, Double, Triple ticket price
+define('WIN',       $S['win']       ?? [1 => 100, 2 => 1000, 3 => 15000]);
+define('WIN_LAST2', $S['win_last2'] ?? 500);                          // Triple: last two digits match
+define('WIN_LAST1', $S['win_last1'] ?? 50);                           // Triple: last digit matches
+define('APPROVAL',  $S['approval']  ?? 15000);                        // wins of this size wait for owner approval
+define('REF_BONUS', $S['ref_bonus'] ?? 100);                          // new player gets this when they use a friend's code
+define('UPI_ID',    $S['upi_id']    ?? 'yourupi@bank');               // <- your real UPI ID
+define('UPI_NAME',  $S['upi_name']  ?? 'Murugan');
+unset($S);

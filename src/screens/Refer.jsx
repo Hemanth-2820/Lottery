@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import Ball from '../components/Ball.jsx'
 
-export const BONUS = 100
+export let BONUS = 100
+export const setBonus = v => { BONUS = +v }
 // Each player's own code comes from their email (TODO(backend): the server should issue and store codes)
 export const codeFor = email => { let h = 7; for (const c of email.toLowerCase()) h = Math.imul(h ^ c.charCodeAt(0), 2654435761) >>> 0; return 'L3' + h.toString(36).toUpperCase().slice(0, 6).padStart(6, '7') }
 // Demo friends who joined with this player's code

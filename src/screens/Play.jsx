@@ -1,7 +1,7 @@
 import React from 'react'
 import Ball from '../components/Ball.jsx'
 import { FlipClock } from '../components/Clocks.jsx'
-import { CLOSE, LOTS, PRICE, closeLbl, current, hms, hrs, inr, lbl, past, perms, sh12, skyElev, skyMode } from '../lib/lottery.js'
+import { CLOSE, LOTS, PRICE, WIN, closeLbl, current, hms, hrs, inr, lbl, past, perms, sh12, skyElev, skyMode } from '../lib/lottery.js'
 
 const NOTE = 'Tickets will not be available to purchase 3 minutes before the draw  ★  '
 const LEFT = [22, 50.2, 78.8]   // where the three domes sit on the stage picture (%)
@@ -36,7 +36,7 @@ export default function Play({ show, mode, tubes, shown, target, qty, cart, bump
       <div className="pclosed">Booking closed for this draw. Tickets stop 3 minutes before the draw.</div>
 
       <div className="lamps" id="lamps">
-        {[['Single ₹12', 'A, B or C · win ₹100'], ['Double ₹12', 'AB, AC, BC · win ₹1,000'], ['Triple ₹30', 'ABC · win ₹15,000']].map(([t, s], i) =>
+        {[['Single ' + inr(PRICE[0]), 'A, B or C · win ' + inr(WIN[0])], ['Double ' + inr(PRICE[1]), 'AB, AC, BC · win ' + inr(WIN[1])], ['Triple ' + inr(PRICE[2]), 'ABC · win ' + inr(WIN[2])]].map(([t, s], i) =>
           <button key={i} className={i === mode ? 'on' : ''} onClick={() => onMode(i)}><b>{t}</b>{s}</button>)}
       </div>
 
@@ -51,9 +51,9 @@ export default function Play({ show, mode, tubes, shown, target, qty, cart, bump
       </div>
 
       <div className="say">
-        {mode === 0 ? (n ? <><b>{[...pos].map((p, j) => p + '=' + v[j]).join('  ')}</b> · {n} Single bet{n > 1 ? 's' : ''} · win <em>₹100</em> each</> : 'Single: every tube is its own ₹12 bet. Tap a ball.')
-          : mode === 1 ? (ok ? <><b>{pos} = {v}</b> · Double · win <em>₹1,000</em></> : 'Double: fill any two tubes (AB, AC or BC).')
-            : (ok ? <><b>ABC = {v}</b> · Triple · win <em>₹15,000</em><small>BOX adds {pm.join(' ')}</small></> : 'Triple: fill all three tubes. BOX adds every order.')}
+        {mode === 0 ? (n ? <><b>{[...pos].map((p, j) => p + '=' + v[j]).join('  ')}</b> · {n} Single bet{n > 1 ? 's' : ''} · win <em>{inr(WIN[0])}</em> each</> : 'Single: every tube is its own ' + inr(PRICE[0]) + ' bet. Tap a ball.')
+          : mode === 1 ? (ok ? <><b>{pos} = {v}</b> · Double · win <em>{inr(WIN[1])}</em></> : 'Double: fill any two tubes (AB, AC or BC).')
+            : (ok ? <><b>ABC = {v}</b> · Triple · win <em>{inr(WIN[2])}</em><small>BOX adds {pm.join(' ')}</small></> : 'Triple: fill all three tubes. BOX adds every order.')}
       </div>
 
       <div className="tray gl">

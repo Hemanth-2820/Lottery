@@ -30,6 +30,7 @@ try {
     q('DELETE FROM otps WHERE email = ?', [$email]);
     $role = in_array($email, ADMIN_EMAILS, true) ? 'admin' : (in_array($email, ANALYST_EMAILS, true) ? 'analyst' : 'player');
     $u = q('SELECT * FROM users WHERE email = ?', [$email])->fetch();
+    if ($u && !empty($u['blocked'])) fail('Your account is blocked. Please contact support.', 403);
     if (!$u) {
       do { $rc = 'L3' . randomCode(6); } while (q('SELECT 1 FROM users WHERE ref_code = ?', [$rc])->fetch());
       q('INSERT INTO users (email, role, ref_code) VALUES (?,?,?)', [$email, $role, $rc]);
@@ -89,6 +90,27 @@ try {
     out(['ok' => true, 'id' => (int)db()->lastInsertId(), 'status' => 'pending']);
   }
 
+  case 'withdraw': {  // player asks to take money out: it leaves the wallet now, the owner sends it by UPI
+    defined('WD_MIN') or define('WD_MIN', 100); defined('WD_MAX') or define('WD_MAX', 25000);   // you can set these in config.php
+    $u = user(); $amt = round((float)arg('amount'), 2); $upi = trim((string)arg('upi'));
+    if ($amt < WD_MIN || $amt > WD_MAX) fail('Withdraw between ₹' . WD_MIN . ' and ₹' . number_format(WD_MAX));
+    if (!preg_match('/^[a-zA-Z0-9.\-_]{2,60}@[a-zA-Z][a-zA-Z0-9]{1,30}$/', $upi)) fail('Enter a valid UPI ID, like name@okaxis');
+    db()->beginTransaction();
+    $w = (float)q('SELECT wallet FROM users WHERE id = ? FOR UPDATE', [$u['id']])->fetchColumn();
+    if (q("SELECT 1 FROM withdrawals WHERE user_id = ? AND status = 'pending'", [$u['id']])->fetch()) { db()->rollBack(); fail('You already have a withdrawal being processed'); }
+    if ($w < $amt) { db()->rollBack(); fail('You only have ₹' . number_format($w) . ' in your wallet'); }
+    q('INSERT INTO withdrawals (user_id, amount, upi) VALUES (?,?,?)', [$u['id'], $amt, $upi]);
+    $id = (int)db()->lastInsertId();
+    addMoney($u['id'], -$amt, 'withdraw', 'WD-' . $id);
+    db()->commit();
+    out(['ok' => true, 'id' => $id, 'wallet' => $w - $amt]);
+  }
+
+  case 'withdrawals': {
+    $u = user();
+    out(['ok' => true, 'withdrawals' => q('SELECT id, amount, upi, status, utr, note, created_at, decided_at FROM withdrawals WHERE user_id = ? ORDER BY id DESC LIMIT 30', [$u['id']])->fetchAll()]);
+  }
+
   case 'recharges': {
     $u = user();
     out(['ok' => true, 'recharges' => q('SELECT id, amount, utr, status, created_at FROM recharges WHERE user_id = ? ORDER BY id DESC LIMIT 30', [$u['id']])->fetchAll()]);
@@ -125,6 +147,13 @@ try {
     out(['ok' => true, 'tickets' => $rows]);
   }
 
+  case 'config': {    // public: current prices, wins, draw times and UPI, so the app always matches the server
+    out(['ok' => true, 'config' => [
+      'lots' => array_map(fn($k, $h) => ['k' => $k, 'h' => array_values($h)], array_keys(LOTS), array_values(LOTS)),
+      'close' => CLOSE, 'price' => array_values(PRICE), 'win' => array_values(WIN), 'last' => [WIN_LAST2, WIN_LAST1],
+      'approval' => APPROVAL, 'ref_bonus' => REF_BONUS, 'upi' => ['id' => UPI_ID, 'name' => UPI_NAME]]]);
+  }
+
   case 'results': {   // public: results of the last N days
     $days = max(1, min(31, (int)arg('days', 7)));
     out(['ok' => true, 'results' => q('SELECT day, lot, h, digits, published_at FROM results WHERE day >= CURDATE() - INTERVAL ? DAY ORDER BY day DESC, h DESC', [$days - 1])->fetchAll()]);
@@ -150,7 +179,16 @@ try {
     require_once __DIR__ . '/fetch.php';
     out(['ok' => true,
       'recharges' => q("SELECT r.id, r.amount, r.utr, r.created_at, u.email FROM recharges r JOIN users u ON u.id = r.user_id WHERE r.status = 'pending' ORDER BY r.id")->fetchAll(),
-      'big_wins'  => q("SELECT b.id, b.amount, b.created_at, u.email, t.code, t.lot, t.h, t.day FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id WHERE b.status = 'pending' ORDER BY b.id")->fetchAll(),
+      'big_wins'  => array_map(function ($b) { $r = (string)$b['result']; $b['lines'] = array_values(array_filter(array_map(fn($x) => $x + ['win' => $r !== '' ? lineWin($x, $r) : 0], json_decode($b['items'], true)), fn($x) => $x['win'] >= APPROVAL)); unset($b['items']); return $b; },
+        q("SELECT b.id, b.amount, b.created_at, u.email, t.code, t.lot, t.h, t.day, t.items, t.total, r.digits AS result FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id LEFT JOIN results r ON r.day = t.day AND r.lot = t.lot AND r.h = t.h WHERE b.status = 'pending' ORDER BY b.id")->fetchAll()),
+      'big_history' => q("SELECT b.id, b.amount, b.status, b.created_at, b.decided_at, u.email, t.code, t.lot, t.h, t.day FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id WHERE b.status <> 'pending' ORDER BY b.decided_at DESC LIMIT 30")->fetchAll(),
+      'withdrawals' => q("SELECT w.id, w.amount, w.upi, w.created_at, u.email, u.wallet,
+          (SELECT COALESCE(SUM(amount),0) FROM recharges r WHERE r.user_id = u.id AND r.status = 'added') AS added,
+          (SELECT COALESCE(SUM(won),0) FROM tickets t WHERE t.user_id = u.id) AS won,
+          (SELECT COALESCE(SUM(amount),0) FROM withdrawals p WHERE p.user_id = u.id AND p.status = 'paid') AS taken
+        FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status = 'pending' ORDER BY w.id")->fetchAll(),
+      'wd_history' => q("SELECT w.id, w.amount, w.upi, w.status, w.utr, w.note, w.decided_at, u.email FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status <> 'pending' ORDER BY w.decided_at DESC LIMIT 30")->fetchAll(),
+      'big_month' => q("SELECT status, COUNT(*) n, COALESCE(SUM(amount),0) s FROM big_wins WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') GROUP BY status")->fetchAll(),
       'results'   => q('SELECT day, lot, h, digits FROM results WHERE day >= CURDATE() - INTERVAL 1 DAY ORDER BY day DESC, h DESC')->fetchAll(),
       'lots'      => LOTS,
       'auto'      => get_auto_status()]);
@@ -192,6 +230,73 @@ try {
     }
     db()->commit();
     out(['ok' => true, 'tickets' => $n, 'paid' => $paid, 'held_for_approval' => $heldTot]);
+  }
+
+  case 'admin_withdraw': {   // {id, paid: true, utr} after sending the money, or {id, paid: false, note} to refund it
+    user('admin'); $id = (int)arg('id'); $paid = (bool)arg('paid');
+    db()->beginTransaction();
+    $x = q("SELECT * FROM withdrawals WHERE id = ? AND status = 'pending' FOR UPDATE", [$id])->fetch();
+    if (!$x) { db()->rollBack(); fail('Already decided'); }
+    if ($paid) {
+      $utr = trim((string)arg('utr')); if (strlen($utr) < 6) { db()->rollBack(); fail('Enter the UPI reference number of your payment'); }
+      q("UPDATE withdrawals SET status = 'paid', utr = ?, decided_at = NOW() WHERE id = ?", [$utr, $id]);
+    } else {
+      q("UPDATE withdrawals SET status = 'rejected', note = ?, decided_at = NOW() WHERE id = ?", [mb_substr(trim((string)arg('note')), 0, 160) ?: null, $id]);
+      addMoney((int)$x['user_id'], (float)$x['amount'], 'refund', 'WD-' . $id);
+    }
+    db()->commit(); out(['ok' => true]);
+  }
+
+  case 'admin_players': {    // ?q=search&page=0 -> players with their money totals
+    user('admin'); $qq = trim((string)arg('q', '')); $page = max(0, (int)arg('page', 0));
+    $where = "u.role = 'player'" . ($qq !== '' ? ' AND u.email LIKE ?' : ''); $args = $qq !== '' ? ['%' . $qq . '%'] : [];
+    $rows = q("SELECT u.id, u.email, u.wallet, u.created_at, u.blocked, u.block_note,
+        (SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id) AS tickets,
+        (SELECT COALESCE(SUM(total),0) FROM tickets t WHERE t.user_id = u.id) AS spent,
+        (SELECT COALESCE(SUM(won),0) FROM tickets t WHERE t.user_id = u.id) AS won,
+        (SELECT COALESCE(SUM(amount),0) FROM recharges r WHERE r.user_id = u.id AND r.status = 'added') AS added,
+        (SELECT COALESCE(SUM(amount),0) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'paid') AS taken,
+        (SELECT MAX(created_at) FROM tickets t WHERE t.user_id = u.id) AS last_play
+      FROM users u WHERE $where ORDER BY u.id DESC LIMIT 50 OFFSET " . ($page * 50), $args)->fetchAll();
+    $c = q("SELECT COUNT(*) n, COALESCE(SUM(blocked),0) b, COALESCE(SUM(DATE(created_at) = CURDATE()),0) t, COALESCE(SUM(wallet),0) w FROM users WHERE role = 'player'")->fetch();
+    out(['ok' => true, 'players' => $rows, 'count' => (int)$c['n'], 'blocked' => (int)$c['b'], 'today' => (int)$c['t'], 'wallets' => (float)$c['w'], 'more' => count($rows) === 50]);
+  }
+
+  case 'admin_player': {     // ?id= -> last 30 wallet movements of one player
+    user('admin');
+    out(['ok' => true, 'txns' => q('SELECT type, amount, ref, created_at FROM txns WHERE user_id = ? ORDER BY id DESC LIMIT 30', [(int)arg('id')])->fetchAll()]);
+  }
+
+  case 'admin_block': {      // {id, block: true|false, note}
+    user('admin'); $id = (int)arg('id'); $b = (bool)arg('block');
+    $p = q('SELECT role FROM users WHERE id = ?', [$id])->fetch();
+    if (!$p || $p['role'] !== 'player') fail('Only players can be blocked');
+    q('UPDATE users SET blocked = ?, block_note = ? WHERE id = ?', [$b ? 1 : 0, $b ? (mb_substr(trim((string)arg('note')), 0, 160) ?: null) : null, $id]);
+    if ($b) q('DELETE FROM sessions WHERE user_id = ?', [$id]);   // signs them out everywhere
+    out(['ok' => true]);
+  }
+
+  case 'admin_settings': {   // owner saves prices, wins, rules, draw times and UPI (written to settings.json)
+    user('admin'); $c = arg('config', []);
+    $int = function ($v, $min, $max, $name) { $v = (int)$v; if ($v < $min || $v > $max) fail("$name must be between $min and $max"); return $v; };
+    $lots = [];
+    foreach (array_keys(LOTS) as $k) {
+      $hs = array_values(array_unique(array_map('intval', (array)($c['lots'][$k] ?? []))));
+      foreach ($hs as $h) if ($h < 6 || $h > 23) fail("$k: draw hours must be between 6 AM and 11 PM");
+      if (!$hs) fail("$k needs at least one draw time"); sort($hs); $lots[$k] = $hs;
+    }
+    $p = (array)($c['price'] ?? []); $w = (array)($c['win'] ?? []);
+    $new = ['lots' => $lots,
+      'close' => $int($c['close_min'] ?? 3, 0, 60, 'Booking close (minutes)') * 60,
+      'price' => [1 => $int($p[0] ?? 0, 1, 10000, 'Single price'), 2 => $int($p[1] ?? 0, 1, 10000, 'Double price'), 3 => $int($p[2] ?? 0, 1, 10000, 'Triple price')],
+      'win' => [1 => $int($w[0] ?? 0, 1, 10000000, 'Single win'), 2 => $int($w[1] ?? 0, 1, 10000000, 'Double win'), 3 => $int($w[2] ?? 0, 1, 10000000, 'Triple win')],
+      'win_last2' => $int($c['win_last2'] ?? 0, 0, 10000000, 'Triple last-2 win'), 'win_last1' => $int($c['win_last1'] ?? 0, 0, 10000000, 'Triple last-1 win'),
+      'approval' => $int($c['approval'] ?? 0, 1, 100000000, 'Approval limit'), 'ref_bonus' => $int($c['ref_bonus'] ?? 0, 0, 100000, 'Referral bonus'),
+      'upi_id' => trim((string)($c['upi_id'] ?? '')), 'upi_name' => mb_substr(trim((string)($c['upi_name'] ?? '')), 0, 40)];
+    if (!preg_match('/^[a-zA-Z0-9.\-_]{2,60}@[a-zA-Z][a-zA-Z0-9]{1,30}$/', $new['upi_id'])) fail('Enter a valid UPI ID, like name@okaxis');
+    if ($new['upi_name'] === '') fail('Enter the UPI name players will see');
+    if (file_put_contents(__DIR__ . '/settings.json', json_encode($new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) fail('Could not save. Check that the api folder is writable.', 500);
+    out(['ok' => true]);
   }
 
   case 'admin_bigwin': {     // {id, approve: true|false}

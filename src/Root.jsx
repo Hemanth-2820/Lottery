@@ -3,6 +3,9 @@ import App from './App.jsx'
 import Login from './screens/Login.jsx'
 import InstallGate, { isStandalone } from './screens/InstallGate.jsx'
 import Splash from './screens/Splash.jsx'
+import { applyConfig } from './lib/lottery.js'
+import { setBonus } from './screens/Refer.jsx'
+import { api, LIVE } from './lib/api.js'
 
 // Flow:
 // 0. On opening / refreshing: plays the 3D prize wheel onboarding splash screen (tap to skip).
@@ -15,6 +18,16 @@ export default function Root() {
     try { return localStorage.getItem('l3user') || null } catch { return null }
   })
   const [standalone, setStandalone] = useState(isStandalone)
+
+  // owner's prices, wins and draw times from the server (loads while the opening screen plays)
+  const [cfg, setCfg] = useState(!LIVE)
+  useEffect(() => {
+    if (!LIVE) return
+    api('config').then(r => {
+      applyConfig(r.config)
+      if (r.config.ref_bonus != null) setBonus(r.config.ref_bonus)
+    }, () => {}).finally(() => setCfg(true))
+  }, [])
 
   useEffect(() => {
     const check = () => setStandalone(isStandalone())
@@ -40,6 +53,8 @@ export default function Root() {
   if (splash) {
     return <Splash onDone={() => setSplash(false)} />
   }
+
+  if (!cfg) return null
 
   // Step 1: User not signed in -> show Login screen
   if (!user) {
