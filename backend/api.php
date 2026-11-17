@@ -200,6 +200,8 @@ try {
           (SELECT COALESCE(SUM(amount),0) FROM withdrawals p WHERE p.user_id = u.id AND p.status = 'paid') AS taken
         FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status = 'pending' ORDER BY w.id")->fetchAll(),
       'wd_history' => q("SELECT w.id, w.amount, w.upi, w.status, w.utr, w.note, w.decided_at, u.email FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status <> 'pending' ORDER BY w.decided_at DESC LIMIT 30")->fetchAll(),
+      'rc_history' => q("SELECT r.id, r.amount, r.utr, r.paid_to, r.status, r.decided_at, u.email FROM recharges r JOIN users u ON u.id = r.user_id WHERE r.status <> 'pending' ORDER BY r.decided_at DESC LIMIT 30")->fetchAll(),
+      'rc_today' => q("SELECT status, COUNT(*) n, COALESCE(SUM(amount),0) s FROM recharges WHERE DATE(COALESCE(decided_at, created_at)) = CURDATE() GROUP BY status")->fetchAll(),
       'big_month' => q("SELECT status, COUNT(*) n, COALESCE(SUM(amount),0) s FROM big_wins WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') GROUP BY status")->fetchAll(),
       'results'   => q('SELECT day, lot, h, digits, src, full_no FROM results WHERE day >= CURDATE() - INTERVAL 6 DAY ORDER BY day DESC, h DESC')->fetchAll(),
       'lots'      => LOTS,
