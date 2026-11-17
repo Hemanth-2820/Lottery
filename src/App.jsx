@@ -250,7 +250,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
         <button className="av" aria-label="Profile" onClick={() => setSheet('p')}><b>{user[0].toUpperCase()}</b></button>
         <div className="hi">
           <small>{st === 'home' ? ist().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' }) : st === 'res' ? 'Checked line by line' : st === 'tix' ? tickets.length + ' tickets' : show.d.lot + ' · ' + lbl(show.d.h) + ' draw' + (show.left <= CLOSE ? ' · CLOSED' : '')}</small>
-          <b id="ttl">{st === 'home' ? <img alt="Lucky3" src={LOGO} /> : TTL[st]}</b>
+          <b id="ttl">{st === 'home' ? <span className="brand"><img alt="" src={import.meta.env.BASE_URL + 'app-logo.png'} /><span>MURUGAN</span></span> : TTL[st]}</b>
         </div>
         <button className="gift-chip" aria-label="Refer and earn" onClick={() => setSheet('r')}><span>🎁</span><b>₹{BONUS}</b></button>
         <button key={hit} className={'bal gl' + (hit ? ' hit' : '')} aria-label="Wallet" onClick={() => setSheet('w')}><i>₹</i><span>{Math.round(walletShown).toLocaleString('en-IN')}</span><em>+</em></button>
@@ -327,7 +327,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
 
       <div className={'rcpt' + (rcpt ? ' on' : '')} onClick={closeAll}>
         {order && <>
-          <div className="stamp">BOOKED</div><h4>lucky3</h4><small>{order.lot} · {order.time} draw · {order.id}</small><div style={{ height: 10 }} />
+          <div className="stamp">BOOKED</div><h4>Murugan</h4><small>{order.lot} · {order.time} draw · {order.id}</small><div style={{ height: 10 }} />
           {order.items.map((x, i) => <div className="l" key={i}><span>{x.pos} {x.v} × {x.q}</span><span>{inr(x.q * x.price)}</span></div>)}
           <div className="l" style={{ fontSize: 16 }}><span>PAID</span><span>{inr(order.t)}</span></div><small>Paid from wallet. Tap to close.</small>
         </>}

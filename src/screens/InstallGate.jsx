@@ -62,7 +62,7 @@ export default function InstallGate({ user, onLogout, onInstalled }) {
     <div className="ig">
       <div className="ig-card">
         <div className="ig-icon">
-          <img src="/app-logo.png" alt="Murugan" style={{ width: '100%', borderRadius: 22 }} />
+          <img src={import.meta.env.BASE_URL + 'app-logo.png'} alt="Murugan" style={{ width: '100%', borderRadius: 22 }} />
         </div>
         <h2>{installed ? 'Installed! 🎉' : 'App Installation Required'}</h2>
         <p>

@@ -10,11 +10,11 @@ const FRIENDS = [['Ravi K', 'Joined · got ₹100', '#ff2d8a'], ['Anjali S', 'Jo
 const COINS = [...Array(14)].map((_, i) => ({ '--a': i * (360 / 14) + 'deg', '--d': 70 + (i % 3) * 22 + 'px', '--dl': (i % 4) * 0.04 + 's' }))
 
 export default function Refer({ user, redeemed, onRedeem, toast }) {
-  const code = codeFor(user), link = 'https://lucky3.app/join?ref=' + code
-  const msg = `Play Lucky3 with me! Use my code ${code} when you sign up and get ₹${BONUS} in your wallet to play. ${link}`
+  const code = codeFor(user), link = (typeof window !== 'undefined' ? window.location.origin : 'https://murugan-vert.vercel.app') + '/?ref=' + code
+  const msg = `Play Murugan with me! Use my code ${code} when you sign up and get ₹${BONUS} in your wallet to play. ${link}`
   const [open, setOpen] = useState(false), [inp, setInp] = useState(''), [err, setErr] = useState('')
   const copy = (t, what) => { try { navigator.clipboard.writeText(t).then(() => toast(what + ' copied'), () => toast('Copy: ' + t)) } catch { toast('Copy: ' + t) } }
-  const share = () => { if (navigator.share) navigator.share({ title: 'Lucky3', text: msg }).catch(() => {}); else copy(msg, 'Invite message') }
+  const share = () => { if (navigator.share) navigator.share({ title: 'Murugan', text: msg }).catch(() => {}); else copy(msg, 'Invite message') }
   const redeem = e => {
     e.preventDefault(); const c = inp.trim().toUpperCase()
     if (!/^L3[0-9A-Z]{6}$/.test(c)) return setErr('Codes look like L3XXXXXX')
