@@ -34,16 +34,22 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
   // QR link: carries the amount, scanning it fills everything in.
   const q = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&am=${amt}.00&cu=INR&tn=${encodeURIComponent('Murugan wallet')}`
   const link = 'upi://pay?' + q
-  const qPay = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&cu=INR`
-  // Payment apps block website links that try to fill in a personal UPI ID ("Something went wrong").
-  // So the buttons just OPEN the app (like tapping its icon) after copying the UPI ID;
-  // the player taps "Pay UPI ID", pastes it and types the amount. This always works.
+  // Pay link with ONLY the UPI ID and name (no amount): opens the app's "pay to UPI ID" screen with the ID filled in.
+  // Apps reject links with a pre-filled amount to personal UPI IDs, so the player types the amount there.
+  const qPay = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name || 'Murugan')}`
+  const payLink = a => isAndroid() ? `intent://pay?${qPay}#Intent;scheme=upi;package=${a.pkg};end` : `${a.ios}?${qPay}`
   const launch = a => isAndroid() ? `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${a.pkg};end` : a.ios.split('/')[0] + '//'
   const openApp = async a => {
     if (!ok) return toast('Enter an amount from ₹10 to ₹50,000')
+    try { await navigator.clipboard.writeText(String(amt)) } catch {}
+    toast('Opening ' + a.n + '… enter ' + inr(amt) + ' and pay')
+    window.location.href = payLink(a)
+  }
+  // backup if an app shows an error: copy the UPI ID and just open the app
+  const openPlain = async a => {
     try { await navigator.clipboard.writeText(UPI_.id) } catch {}
     toast('UPI ID copied. In ' + a.n + ' tap "Pay UPI ID", paste it and pay ' + inr(amt))
-    setTimeout(() => { window.location.href = launch(a) }, 1800)
+    setTimeout(() => { window.location.href = launch(a) }, 1500)
   }
   const [qr, setQr] = useState('')
   useEffect(() => { if (UPI_.qr) { setQr(API_URL.replace(/[^/]*$/, '') + UPI_.qr); return } QRCode.toDataURL(link, { margin: 1, width: 300 }).then(setQr, () => setQr('')) }, [link, UPI_.qr])
@@ -95,7 +101,8 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
       <h5>Pay {inr(amt)} with</h5>
       <div className="apps">{APPS.map(a => <button key={a.k} className={'app' + (ok ? '' : ' dis')} style={{ '--c': a.c }} onClick={() => openApp(a)}><i>{a.n[0]}</i><span>{a.n}</span></button>)}</div>
       <a className={'upibtn other' + (ok ? '' : ' dis')} href={ok ? 'upi://pay?' + qPay : undefined}>Other UPI app ›</a>
-      <small className="hint">Tapping an app copies <b>{UPI_.id}</b> and opens the app. Tap <b>Pay UPI ID / To UPI ID</b>, paste, and pay <b>{inr(amt)}</b>. Or scan the QR above from another phone. Then come back and enter the UTR below.</small>
+      <small className="hint">Opens the payment screen with <b>{UPI_.id}</b> filled in. Enter <b>{inr(amt)}</b> and pay, then come back and enter the UTR below.</small>
+      <small className="hint">If an app shows an error, use: {APPS.map((a, i) => <React.Fragment key={a.k}>{i ? ' · ' : ''}<button type="button" className="lnk" style={{ background: 'none', border: 0, color: '#ffd23f', textDecoration: 'underline', padding: 0, font: 'inherit' }} onClick={() => openPlain(a)}>{a.n}</button></React.Fragment>)} (copies the UPI ID and opens the app).</small>
 
       <form className="utr" onSubmit={submit}>
         <label htmlFor="w-utr">After paying to <b>{UPI_.id}</b>, enter the 12-digit UPI reference number (UTR) shown in your UPI app.</label>
