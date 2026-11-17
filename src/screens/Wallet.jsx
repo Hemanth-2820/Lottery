@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { API_URL } from '../lib/api.js'
+import { API_URL, LIVE, api } from '../lib/api.js'
 import { APPROVAL, UPI, UPIS, inr } from '../lib/lottery.js'
 
 const AMTS = [100, 200, 500, 1000]
@@ -12,13 +12,15 @@ const APPS = [
   { k: 'bhim', n: 'BHIM', c: '#e86b1c', pkg: 'in.org.npci.upiapp', ios: 'bhim://pay' },
 ]
 const isAndroid = () => /android/i.test(navigator.userAgent)
-const appLink = (a, q) => isAndroid() ? `intent://pay?${q}#Intent;scheme=upi;package=${a.pkg};end` : `${a.ios}?${q}`
 
 // Wallet sheet: balance, add money by UPI, and the list of recharge requests.
 export default function Wallet({ shown, held, recharges, toast, onRequest, onConfirm, upi = UPI, withdrawals = [], onWithdraw }) {
-  const list = UPIS.length ? UPIS : [upi]
+  // UPI IDs come fresh from the server every time the wallet opens, so a change in Admin → Settings shows at once.
+  const [srv, setSrv] = useState(null)
+  useEffect(() => { if (LIVE) api('upis').then(r => setSrv(r.upis || []), () => setSrv(null)) }, [])
+  const list = srv && srv.length ? srv : UPIS.length ? UPIS : LIVE ? [] : [upi]
   const [pick, setPick] = useState(0)
-  const UPI_ = list[Math.min(pick, list.length - 1)]
+  const UPI_ = list[Math.min(pick, list.length - 1)] || { id: '', name: '' }
   const [amt, setAmt] = useState(500), [utr, setUtr] = useState('')
   const [tab, setTab] = useState('add'), [wAmt, setWAmt] = useState(0), [wUpi, setWUpi] = useState(() => { try { return localStorage.getItem('l3upi') || '' } catch { return '' } })
   const [ask, setAsk] = useState(false), [busy, setBusy] = useState(false)
@@ -32,15 +34,16 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
   // QR link: carries the amount, scanning it fills everything in.
   const q = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&am=${amt}.00&cu=INR&tn=${encodeURIComponent('Murugan wallet')}`
   const link = 'upi://pay?' + q
-  // Payment apps block links to a PERSONAL UPI ID when the amount is pre-filled ("Something went wrong").
-  // So the app buttons open the app with only the UPI ID and name (normal "pay to UPI ID" screen, which is allowed);
-  // the player types the amount there. The QR still carries the amount.
   const qPay = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&cu=INR`
-  const openApp = a => {
+  // Payment apps block website links that try to fill in a personal UPI ID ("Something went wrong").
+  // So the buttons just OPEN the app (like tapping its icon) after copying the UPI ID;
+  // the player taps "Pay UPI ID", pastes it and types the amount. This always works.
+  const launch = a => isAndroid() ? `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${a.pkg};end` : a.ios.split('/')[0] + '//'
+  const openApp = async a => {
     if (!ok) return toast('Enter an amount from ₹10 to ₹50,000')
-    try { navigator.clipboard.writeText(String(amt)) } catch {}
-    toast('Type ' + inr(amt) + ' in ' + a.n + ' and pay')
-    setTimeout(() => { window.location.href = appLink(a, qPay) }, 600)
+    try { await navigator.clipboard.writeText(UPI_.id) } catch {}
+    toast('UPI ID copied. In ' + a.n + ' tap "Pay UPI ID", paste it and pay ' + inr(amt))
+    setTimeout(() => { window.location.href = launch(a) }, 1800)
   }
   const [qr, setQr] = useState('')
   useEffect(() => { if (UPI_.qr) { setQr(API_URL.replace(/[^/]*$/, '') + UPI_.qr); return } QRCode.toDataURL(link, { margin: 1, width: 300 }).then(setQr, () => setQr('')) }, [link, UPI_.qr])
@@ -81,6 +84,7 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
         </>}
       </> : <>
       <h5>Add money by UPI</h5>
+      {!UPI_.id ? <div className="wpend"><b>{srv === null && LIVE ? 'Loading payment details…' : 'Payments are paused'}</b><span>{srv === null && LIVE ? 'One moment.' : 'The owner has not turned on a UPI ID yet. Please try again later.'}</span></div> : <>
       <div className="amts">{AMTS.map(a => <button key={a} className={'gl' + (a === amt ? ' on' : '')} onClick={() => setAmt(a)}>{inr(a)}</button>)}</div>
       <label className="fld" htmlFor="w-amt"><span>Amount (₹)</span><input id="w-amt" type="number" inputMode="numeric" min="10" max="50000" value={amt || ''} onChange={e => setAmt(Math.floor(+e.target.value) || 0)} /></label>
 
@@ -91,12 +95,13 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
       <h5>Pay {inr(amt)} with</h5>
       <div className="apps">{APPS.map(a => <button key={a.k} className={'app' + (ok ? '' : ' dis')} style={{ '--c': a.c }} onClick={() => openApp(a)}><i>{a.n[0]}</i><span>{a.n}</span></button>)}</div>
       <a className={'upibtn other' + (ok ? '' : ' dis')} href={ok ? 'upi://pay?' + qPay : undefined}>Other UPI app ›</a>
-      <small className="hint">Opens the app with <b>{UPI_.id}</b> filled in. Type <b>{inr(amt)}</b> there and pay, or scan the QR above (amount already in it). Then come back and enter the UTR below.</small>
+      <small className="hint">Tapping an app copies <b>{UPI_.id}</b> and opens the app. Tap <b>Pay UPI ID / To UPI ID</b>, paste, and pay <b>{inr(amt)}</b>. Or scan the QR above from another phone. Then come back and enter the UTR below.</small>
 
       <form className="utr" onSubmit={submit}>
         <label htmlFor="w-utr">After paying to <b>{UPI_.id}</b>, enter the 12-digit UPI reference number (UTR) shown in your UPI app.</label>
         <div><input id="w-utr" inputMode="numeric" maxLength={12} placeholder="431256789012" value={utr} onChange={e => setUtr(e.target.value.replace(/\D/g, ''))} /><button className="pay">Submit</button></div>
       </form>
+      </>}
 
       {recharges.length > 0 && <>
         <h5>Recharge requests</h5>

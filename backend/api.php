@@ -155,6 +155,15 @@ try {
       'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on'], 'qr' => !empty($u['qr']) ? $u['qr'] : null], UPIS)]]);
   }
 
+  case 'upis': {      // public: the UPI IDs that are ON right now, read fresh from settings.json every time
+    $st = is_file(__DIR__ . '/settings.json') ? (json_decode((string)file_get_contents(__DIR__ . '/settings.json'), true) ?: []) : [];
+    $list = [];
+    foreach ((array)($st['upis'] ?? []) as $u) if (!empty($u['id']) && (!isset($u['on']) || $u['on'])) $list[] = ['id' => $u['id'], 'name' => $u['name'] ?? '', 'qr' => !empty($u['qr']) ? $u['qr'] : null];
+    if (!$list && defined('UPI_ID') && UPI_ID && UPI_ID !== 'yourupi@bank') $list[] = ['id' => UPI_ID, 'name' => defined('UPI_NAME') ? UPI_NAME : '', 'qr' => null];
+    header('Cache-Control: no-store');
+    out(['ok' => true, 'upis' => $list]);
+  }
+
   case 'results': {   // public: results of the last N days. Also checks the result websites (max once a minute) as a backup for the cron job.
     $days = max(1, min(31, (int)arg('days', 7)));
     $json = json_encode(['ok' => true, 'results' => q('SELECT day, lot, h, digits, published_at FROM results WHERE day >= CURDATE() - INTERVAL ? DAY ORDER BY day DESC, h DESC', [$days - 1])->fetchAll()], JSON_UNESCAPED_UNICODE);
