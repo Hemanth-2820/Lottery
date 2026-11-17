@@ -190,7 +190,7 @@ try {
         FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status = 'pending' ORDER BY w.id")->fetchAll(),
       'wd_history' => q("SELECT w.id, w.amount, w.upi, w.status, w.utr, w.note, w.decided_at, u.email FROM withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status <> 'pending' ORDER BY w.decided_at DESC LIMIT 30")->fetchAll(),
       'big_month' => q("SELECT status, COUNT(*) n, COALESCE(SUM(amount),0) s FROM big_wins WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') GROUP BY status")->fetchAll(),
-      'results'   => q('SELECT day, lot, h, digits FROM results WHERE day >= CURDATE() - INTERVAL 1 DAY ORDER BY day DESC, h DESC')->fetchAll(),
+      'results'   => q('SELECT day, lot, h, digits, src, full_no FROM results WHERE day >= CURDATE() - INTERVAL 6 DAY ORDER BY day DESC, h DESC')->fetchAll(),
       'lots'      => LOTS,
       'auto'      => get_auto_status()]);
   }
@@ -231,6 +231,12 @@ try {
     }
     db()->commit();
     out(['ok' => true, 'tickets' => $n, 'paid' => $paid, 'held_for_approval' => $heldTot]);
+  }
+
+  case 'admin_unpublish': {  // {day, lot, h}: removes a published result
+    user('admin'); $day = (string)arg('day'); $lot = (string)arg('lot'); $h = (int)arg('h');
+    q('DELETE FROM results WHERE day = ? AND lot = ? AND h = ?', [$day, $lot, $h]);
+    out(['ok' => true]);
   }
 
   case 'admin_withdraw': {   // {id, paid: true, utr} after sending the money, or {id, paid: false, note} to refund it
