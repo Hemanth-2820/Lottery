@@ -296,6 +296,19 @@ try {
     out(['ok' => true]);
   }
 
+  case 'admin_adjust': {     // {id, amount (+ add / - remove), note}  owner fixes a player's wallet by hand
+    user('admin'); $id = (int)arg('id'); $amt = round((float)arg('amount'), 2); $note = mb_substr(trim((string)arg('note')), 0, 120);
+    if (!$amt || abs($amt) > 100000) fail('Enter an amount between 1 and 100000');
+    if ($note === '') fail('Write a reason');
+    db()->beginTransaction();
+    $p = q("SELECT wallet, role FROM users WHERE id = ? FOR UPDATE", [$id])->fetch();
+    if (!$p || $p['role'] !== 'player') { db()->rollBack(); fail('Player not found'); }
+    if ($p['wallet'] + $amt < 0) { db()->rollBack(); fail('Wallet has only ₹' . (float)$p['wallet'] . ', cannot remove more than that'); }
+    addMoney($id, $amt, 'adjust', 'Admin: ' . $note);
+    db()->commit();
+    out(['ok' => true, 'wallet' => (float)$p['wallet'] + $amt]);
+  }
+
   case 'admin_settings': {   // owner saves prices, wins, rules, draw times and UPI (written to settings.json)
     user('admin'); $c = arg('config', []);
     $int = function ($v, $min, $max, $name) { $v = (int)$v; if ($v < $min || $v > $max) fail("$name must be between $min and $max"); return $v; };

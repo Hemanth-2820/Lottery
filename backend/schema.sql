@@ -34,7 +34,7 @@ CREATE TABLE sessions (
 CREATE TABLE txns (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  type ENUM('recharge','bet','win','bonus','refund','withdraw') NOT NULL,
+  type ENUM('recharge','bet','win','bonus','refund','withdraw','adjust') NOT NULL,
   amount DECIMAL(12,2) NOT NULL,          -- + adds to wallet, - takes from it
   ref VARCHAR(64) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
