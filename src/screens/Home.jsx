@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useState } from 'react'
+import Scene from '../components/Scene.jsx'
 import Ball from '../components/Ball.jsx'
 import { Led } from '../components/Clocks.jsx'
 import { MACH } from '../art.js'
@@ -73,9 +74,10 @@ export default function Home({ liveRef, led, machSpin, onShake, onPlay, onPick }
             <div key={L.k} className={`dc ${st} s${m} ${ft ? 'feat' : ''}`} style={{ '--i': i }} role="button" tabIndex={0} onClick={() => onPick(L.k, nx || 0)}>
               <span className={'sc ' + ['sun', 'wave', 'set', 'moon'][m]}><i /></span>
               <canvas className="sky" data-m={m} data-v={i * 3.7 + sk} data-e={skyElev(sk)} />
+              <Scene k={L.k} />
               <span className="dcl">{L.k.toUpperCase()}</span>
-              <span className="dcs">{st === 'open' ? <><s />OPEN</> : st === 'shut' ? 'CLOSED' : 'DONE TODAY'}</span>
-              <span className="dct">{hh > 12 ? hh - 12 : hh}<small>{(hh >= 12 ? 'PM' : 'AM') + (nx ? '' : ' tomorrow')}</small></span>
+              <span className="dcs">{st === 'open' ? <><s />OPEN</> : st === 'shut' ? 'CLOSED' : (ft ? 'DONE TODAY' : '✓ DONE')}</span>
+              <span className="dct">{hh > 12 ? hh - 12 : hh}<small>{hh >= 12 ? 'PM' : 'AM'}</small>{!nx && <em className="tmr">tomorrow</em>}</span>
               <span className="dch">
                 {L.h.map(x => <i key={x} className={x <= h ? 'dn' : x === nx ? 'nx' : ''} onClick={e => { e.stopPropagation(); onPick(L.k, x) }}>{sh12(x)}{x <= h ? ' ✓' : ''}</i>)}
               </span>

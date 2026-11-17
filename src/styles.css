@@ -642,3 +642,42 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 .app i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--c);font:900 18px sans-serif;font-style:normal;color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--c) 60%,transparent)}
 .app:active{transform:scale(.95)}.app.dis{opacity:.5}
 .upibtn.other{margin-top:10px;background:rgba(255,255,255,.08);color:#fff;box-shadow:none;border:1.5px solid rgba(255,255,255,.2)}
+
+
+/* ---- lottery card place scenes + no overflow ---- */
+.dc .scn{position:absolute;left:0;right:0;bottom:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.dcl{max-width:calc(100% - 96px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc.feat .dcl{max-width:none}
+.dcs{white-space:nowrap}
+.dct{display:flex;align-items:baseline;gap:2px;white-space:nowrap}
+.dct .tmr{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.5px;margin-left:6px;padding:2px 7px;border-radius:99px;background:rgba(10,5,40,.4);align-self:center}
+.scn .sw{animation:sway 3.2s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-5deg)}to{transform:rotate(6deg)}}
+.scn .shim{animation:shim 2.6s linear infinite}
+@keyframes shim{from{transform:translateX(0)}50%{opacity:.5}to{transform:translateX(-10px)}}
+.scn .boat{animation:boat 22s linear infinite}
+@keyframes boat{from{transform:translate(-40px,63px)}to{transform:translate(220px,63px)}}
+.scn .wv{animation:wv 4s linear infinite}.scn .wv2{animation:wv 2.8s linear infinite reverse}
+@keyframes wv{from{transform:translateX(0)}to{transform:translateX(40px)}}
+.scn .bob{animation:bob 2.4s ease-in-out infinite alternate}
+@keyframes bob{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(2px) rotate(2deg)}}
+.scn .rfl{transform:scaleY(1);animation:rfl 2.2s ease-in-out infinite alternate}
+@keyframes rfl{from{transform:scaleY(.94) skewX(-2deg)}to{transform:scaleY(1.04) skewX(2deg)}}
+.scn .glow{animation:glow 2.8s ease-in-out infinite alternate}
+@keyframes glow{from{opacity:.5}to{opacity:1}}
+.scn .cl1{animation:cl 18s linear infinite}.scn .cl2{animation:cl 26s linear infinite reverse}
+@keyframes cl{from{transform:translateX(-30px)}to{transform:translateX(60px)}}
+.scn .flag{animation:flag .9s ease-in-out infinite alternate}
+@keyframes flag{from{transform:skewX(-14deg) scaleY(.9)}to{transform:skewX(12deg) scaleY(1.05)}}
+.scn .mist{animation:mist 14s ease-in-out infinite alternate}
+@keyframes mist{from{transform:translateX(-20px)}to{transform:translateX(20px)}}
+.scn .lt{animation:lt 2s ease-in-out infinite alternate}
+@keyframes lt{from{opacity:.3}to{opacity:1}}
+.scn .bird{animation:bird 16s linear infinite}
+@keyframes bird{0%{transform:translate(-20px,34px)}50%{transform:translate(100px,24px)}100%{transform:translate(220px,32px)}}
+.scn .flap{animation:flap .5s ease-in-out infinite alternate}
+@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(-.6)}}
+@media (prefers-reduced-motion:reduce){.scn *{animation:none!important}}
+#ttl{overflow:visible}
+#ttl .brand span{font-size:14px;letter-spacing:.5px}
+#ttl .brand img{width:26px;height:26px}
