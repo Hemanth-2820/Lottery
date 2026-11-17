@@ -280,10 +280,10 @@ export default function App({ user = 'player@example.com', onLogout }) {
       <div className={'sheet tall' + (sheet === 'w' ? ' on' : '')}>
         <Wallet shown={walletShown} held={held} recharges={recharges} toast={toast} withdrawals={withdrawals}
           onWithdraw={isLive ? (amount, upi) => api('withdraw', { amount, upi }).then(r => { changeWallet(r.wallet); toast(inr(amount) + ' withdrawal requested. The owner will send it to ' + upi); refresh() }, x => { toast(x.message); throw x }) : undefined}
-          onRequest={async (amt, utr) => {
+          onRequest={async (amt, utr, upiId) => {
             if (isLive) {
               try {
-                const res = await api('recharge', { amount: amt, utr })
+                const res = await api('recharge', { amount: amt, utr, upi: upiId })
                 setRecharges(r => [{ id: res.id, amt, utr, status: 'pending' }, ...r])
                 toast('Payment sent for checking')
               } catch (err) {

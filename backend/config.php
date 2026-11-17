@@ -40,4 +40,6 @@ define('APPROVAL',  $S['approval']  ?? 15000);                        // wins of
 define('REF_BONUS', $S['ref_bonus'] ?? 100);                          // new player gets this when they use a friend's code
 define('UPI_ID',    $S['upi_id']    ?? 'yourupi@bank');               // <- your real UPI ID
 define('UPI_NAME',  $S['upi_name']  ?? 'Murugan');
+// several UPI accounts players can choose from when adding money: [{id, name, on}]
+define('UPIS', array_values(array_filter($S['upis'] ?? [['id' => UPI_ID, 'name' => UPI_NAME, 'on' => true]], fn($u) => !empty($u['id']))));
 unset($S);

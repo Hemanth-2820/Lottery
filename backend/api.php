@@ -82,11 +82,11 @@ try {
   }
 
   case 'recharge': {  // player paid by UPI and sends the UTR (12-digit transaction number)
-    $u = user(); $amt = (float)arg('amount'); $utr = preg_replace('/\D/', '', (string)arg('utr'));
+    $u = user(); $amt = (float)arg('amount'); $utr = preg_replace('/\D/', '', (string)arg('utr')); $to = mb_substr(trim((string)arg('upi', '')), 0, 80) ?: null;
     if ($amt < 10 || $amt > 50000) fail('Amount must be between ₹10 and ₹50,000');
     if (strlen($utr) !== 12) fail('Enter the 12-digit UTR number from your UPI app');
     if (q('SELECT 1 FROM recharges WHERE utr = ?', [$utr])->fetch()) fail('This UTR was already sent');
-    q('INSERT INTO recharges (user_id, amount, utr) VALUES (?,?,?)', [$u['id'], $amt, $utr]);
+    q('INSERT INTO recharges (user_id, amount, utr, paid_to) VALUES (?,?,?,?)', [$u['id'], $amt, $utr, $to]);
     out(['ok' => true, 'id' => (int)db()->lastInsertId(), 'status' => 'pending']);
   }
 
@@ -151,7 +151,8 @@ try {
     out(['ok' => true, 'config' => [
       'lots' => array_map(fn($k, $h) => ['k' => $k, 'h' => array_values($h)], array_keys(LOTS), array_values(LOTS)),
       'close' => CLOSE, 'price' => array_values(PRICE), 'win' => array_values(WIN), 'last' => [WIN_LAST2, WIN_LAST1],
-      'approval' => APPROVAL, 'ref_bonus' => REF_BONUS, 'upi' => ['id' => UPI_ID, 'name' => UPI_NAME]]]);
+      'approval' => APPROVAL, 'ref_bonus' => REF_BONUS, 'upi' => ['id' => UPI_ID, 'name' => UPI_NAME],
+      'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on']], UPIS)]]);
   }
 
   case 'results': {   // public: results of the last N days
@@ -178,7 +179,7 @@ try {
     user('admin');
     require_once __DIR__ . '/fetch.php';
     out(['ok' => true,
-      'recharges' => q("SELECT r.id, r.amount, r.utr, r.created_at, u.email FROM recharges r JOIN users u ON u.id = r.user_id WHERE r.status = 'pending' ORDER BY r.id")->fetchAll(),
+      'recharges' => q("SELECT r.id, r.amount, r.utr, r.paid_to, r.created_at, u.email FROM recharges r JOIN users u ON u.id = r.user_id WHERE r.status = 'pending' ORDER BY r.id")->fetchAll(),
       'big_wins'  => array_map(function ($b) { $r = (string)$b['result']; $b['lines'] = array_values(array_filter(array_map(fn($x) => $x + ['win' => $r !== '' ? lineWin($x, $r) : 0], json_decode($b['items'], true)), fn($x) => $x['win'] >= APPROVAL)); unset($b['items']); return $b; },
         q("SELECT b.id, b.amount, b.created_at, u.email, t.code, t.lot, t.h, t.day, t.items, t.total, r.digits AS result FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id LEFT JOIN results r ON r.day = t.day AND r.lot = t.lot AND r.h = t.h WHERE b.status = 'pending' ORDER BY b.id")->fetchAll()),
       'big_history' => q("SELECT b.id, b.amount, b.status, b.created_at, b.decided_at, u.email, t.code, t.lot, t.h, t.day FROM big_wins b JOIN users u ON u.id = b.user_id JOIN tickets t ON t.id = b.ticket_id WHERE b.status <> 'pending' ORDER BY b.decided_at DESC LIMIT 30")->fetchAll(),
@@ -292,9 +293,19 @@ try {
       'win' => [1 => $int($w[0] ?? 0, 1, 10000000, 'Single win'), 2 => $int($w[1] ?? 0, 1, 10000000, 'Double win'), 3 => $int($w[2] ?? 0, 1, 10000000, 'Triple win')],
       'win_last2' => $int($c['win_last2'] ?? 0, 0, 10000000, 'Triple last-2 win'), 'win_last1' => $int($c['win_last1'] ?? 0, 0, 10000000, 'Triple last-1 win'),
       'approval' => $int($c['approval'] ?? 0, 1, 100000000, 'Approval limit'), 'ref_bonus' => $int($c['ref_bonus'] ?? 0, 0, 100000, 'Referral bonus'),
-      'upi_id' => trim((string)($c['upi_id'] ?? '')), 'upi_name' => mb_substr(trim((string)($c['upi_name'] ?? '')), 0, 40)];
-    if (!preg_match('/^[a-zA-Z0-9.\-_]{2,60}@[a-zA-Z][a-zA-Z0-9]{1,30}$/', $new['upi_id'])) fail('Enter a valid UPI ID, like name@okaxis');
-    if ($new['upi_name'] === '') fail('Enter the UPI name players will see');
+      'upis' => []];
+    foreach ((array)($c['upis'] ?? []) as $i => $x) {
+      $id = trim((string)($x['id'] ?? '')); $nm = mb_substr(trim((string)($x['name'] ?? '')), 0, 40);
+      if ($id === '' && $nm === '') continue;
+      if (!preg_match('/^[a-zA-Z0-9.\-_]{2,60}@[a-zA-Z][a-zA-Z0-9]{1,30}$/', $id)) fail('UPI ' . ($i + 1) . ': enter a valid UPI ID, like name@okaxis');
+      if ($nm === '') fail('UPI ' . ($i + 1) . ': enter the name players will see');
+      foreach ($new['upis'] as $y) if (strcasecmp($y['id'], $id) === 0) fail("$id is added twice");
+      $new['upis'][] = ['id' => $id, 'name' => $nm, 'on' => !empty($x['on'])];
+    }
+    $on = array_values(array_filter($new['upis'], fn($u) => $u['on']));
+    if (!$on) fail('Turn on at least one UPI ID so players can add money');
+    if (count($new['upis']) > 10) fail('You can add up to 10 UPI IDs');
+    $new['upi_id'] = $on[0]['id']; $new['upi_name'] = $on[0]['name'];
     if (file_put_contents(__DIR__ . '/settings.json', json_encode($new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) fail('Could not save. Check that the api folder is writable.', 500);
     out(['ok' => true]);
   }

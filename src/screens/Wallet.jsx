@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { APPROVAL, UPI, inr } from '../lib/lottery.js'
+import { APPROVAL, UPI, UPIS, inr } from '../lib/lottery.js'
 
 const AMTS = [100, 200, 500, 1000]
 
 // Wallet sheet: balance, add money by UPI, withdraw to UPI, and the request lists.
 export default function Wallet({ shown, held, recharges, toast, onRequest, onConfirm, upi = UPI, withdrawals = [], onWithdraw }) {
-  const UPI_ = upi
+  const list = UPIS.length ? UPIS : [upi]
+  const [pick, setPick] = useState(0)
+  const UPI_ = list[Math.min(pick, list.length - 1)]
   const [amt, setAmt] = useState(500), [utr, setUtr] = useState('')
   const [tab, setTab] = useState('add'), [wAmt, setWAmt] = useState(0), [wUpi, setWUpi] = useState(() => { try { return localStorage.getItem('l3upi') || '' } catch { return '' } })
   const [ask, setAsk] = useState(false), [busy, setBusy] = useState(false)
@@ -23,7 +25,7 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
     e.preventDefault()
     if (!ok) return toast('Enter an amount from ₹10 to ₹50,000')
     if (!/^\d{12}$/.test(utr)) return toast('Enter the 12-digit UPI reference number')
-    onRequest(amt, utr); setUtr('')
+    onRequest(amt, utr, UPI_.id); setUtr('')
   }
 
   return (
@@ -58,12 +60,15 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
       <div className="amts">{AMTS.map(a => <button key={a} className={'gl' + (a === amt ? ' on' : '')} onClick={() => setAmt(a)}>{inr(a)}</button>)}</div>
       <label className="fld" htmlFor="w-amt"><span>Amount (₹)</span><input id="w-amt" type="number" inputMode="numeric" min="10" max="50000" value={amt || ''} onChange={e => setAmt(Math.floor(+e.target.value) || 0)} /></label>
 
+      {list.length > 1 && <><small className="hint" style={{ marginTop: 12, display: 'block' }}>Choose a UPI ID to pay to</small>
+        <div className="upis">{list.map((u, i) => <button key={u.id} className={'upi-c' + (UPI_.id === u.id ? ' on' : '')} onClick={() => setPick(i)}><i>{UPI_.id === u.id ? '✓' : i + 1}</i><span><b>{u.id}</b><small>{u.name}</small></span></button>)}</div></>}
+
       <div className="upi"><div><small>Pay to UPI ID</small><b>{UPI_.id}</b></div><button onClick={copy}>Copy</button></div>
       <a className={'upibtn' + (ok ? '' : ' dis')} href={ok ? link : undefined}>Pay {inr(amt)} with UPI app ›</a>
       <small className="hint">Opens the UPI apps on your phone with the amount already filled in.</small>
 
       <form className="utr" onSubmit={submit}>
-        <label htmlFor="w-utr">After paying, enter the 12-digit UPI reference number (UTR) shown in your UPI app.</label>
+        <label htmlFor="w-utr">After paying to <b>{UPI_.id}</b>, enter the 12-digit UPI reference number (UTR) shown in your UPI app.</label>
         <div><input id="w-utr" inputMode="numeric" maxLength={12} placeholder="431256789012" value={utr} onChange={e => setUtr(e.target.value.replace(/\D/g, ''))} /><button className="pay">Submit</button></div>
       </form>
 

@@ -61,6 +61,7 @@ CREATE TABLE recharges (
   user_id INT NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
   utr VARCHAR(30) NOT NULL UNIQUE,
+  paid_to VARCHAR(80) NULL,
   status ENUM('pending','added','rejected') NOT NULL DEFAULT 'pending',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   decided_at DATETIME NULL,

@@ -12,7 +12,8 @@ export const WIN = [100, 1000, 15000]
 export let APPROVAL = 15000       // wins of this size wait for owner approval
 export const LAST = [500, 50]       // Triple: last two digits / last digit match
 // TODO: put the owner's real UPI ID and display name here. Wallet recharges are paid to this ID.
-export const UPI = { id: 'yourupi@bank', name: 'Lucky3' }
+export const UPI = { id: 'yourupi@bank', name: 'Murugan' }
+export const UPIS = []              // all UPI IDs the owner turned on (from the server)
 
 // every draw time of the day, with the lotteries that draw then
 export const DRAWS = [...new Set(LOTS.flatMap(l => l.h))].sort((a, b) => a - b)
@@ -81,6 +82,7 @@ export function applyConfig(c) {
   if (c.close != null) CLOSE = +c.close
   if (c.approval != null) APPROVAL = +c.approval
   if (c.upi) Object.assign(UPI, c.upi)
+  if (Array.isArray(c.upis)) fill(UPIS, c.upis.filter(u => u.on !== false && u.id))
   fill(DRAWS, [...new Set(LOTS.flatMap(l => l.h))].sort((a, b) => a - b).map(h => ({ h, lot: LOTS.filter(l => l.h.includes(h)).map(l => l.k).join(' + ') })))
   fill(SLOTS, DRAWS.flatMap(d => LOTS.filter(l => l.h.includes(d.h)).map(l => ({ lot: l.k, h: d.h }))))
 }
