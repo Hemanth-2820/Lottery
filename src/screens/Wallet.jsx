@@ -37,7 +37,10 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
   // Pay link with ONLY the UPI ID and name (no amount): opens the app's "pay to UPI ID" screen with the ID filled in.
   // Apps reject links with a pre-filled amount to personal UPI IDs, so the player types the amount there.
   const qPay = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name || 'Murugan')}`
-  const payLink = a => isAndroid() ? `intent://pay?${qPay}#Intent;scheme=upi;package=${a.pkg};end` : `${a.ios}?${qPay}`
+  // Google Pay accepts its own "tez" link better than the general upi:// one
+  const payLink = a => isAndroid()
+    ? (a.k === 'gpay' ? `intent://upi/pay?${qPay}#Intent;scheme=tez;package=${a.pkg};end` : `intent://pay?${qPay}#Intent;scheme=upi;package=${a.pkg};end`)
+    : (a.k === 'gpay' ? `tez://upi/pay?${qPay}` : `${a.ios}?${qPay}`)
   const launch = a => isAndroid() ? `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${a.pkg};end` : a.ios.split('/')[0] + '//'
   const openApp = async a => {
     if (!ok) return toast('Enter an amount from ₹10 to ₹50,000')
