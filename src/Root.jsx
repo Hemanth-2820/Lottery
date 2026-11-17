@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import App from './App.jsx'
 import Login from './screens/Login.jsx'
-import InstallGate, { isStandalone } from './screens/InstallGate.jsx'
+import InstallGate, { mustInstall } from './screens/InstallGate.jsx'
 import Splash from './screens/Splash.jsx'
 import { applyConfig } from './lib/lottery.js'
 import { setBonus } from './screens/Refer.jsx'
@@ -17,7 +17,6 @@ export default function Root() {
   const [user, setUser] = useState(() => {
     try { return localStorage.getItem('l3user') || null } catch { return null }
   })
-  const [standalone, setStandalone] = useState(isStandalone)
 
   // owner's prices, wins and draw times from the server (loads while the opening screen plays)
   const [cfg, setCfg] = useState(!LIVE)
@@ -27,17 +26,6 @@ export default function Root() {
       applyConfig(r.config)
       if (r.config.ref_bonus != null) setBonus(r.config.ref_bonus)
     }, () => {}).finally(() => setCfg(true))
-  }, [])
-
-  useEffect(() => {
-    const check = () => setStandalone(isStandalone())
-    window.addEventListener('appinstalled', check)
-    const m = window.matchMedia('(display-mode: standalone)')
-    m.addEventListener?.('change', check)
-    return () => {
-      window.removeEventListener('appinstalled', check)
-      m.removeEventListener?.('change', check)
-    }
   }, [])
 
   const login = email => {
@@ -50,9 +38,9 @@ export default function Root() {
   }
 
   // Step 0: Onboarding splash screen
-  if (splash) {
-    return <Splash onDone={() => setSplash(false)} />
-  }
+  if (splash) return <Splash onDone={() => setSplash(false)} />
+
+  if (mustInstall()) return <InstallGate />   // phone browser: only the install screen, the game never opens here
 
   if (!cfg) return null
 
@@ -61,11 +49,6 @@ export default function Root() {
     return <Login onLogin={login} />
   }
 
-  // Step 2: User signed in, but running inside regular browser -> FORCE install, do not show app
-  if (!standalone) {
-    return <InstallGate user={user} onLogout={logout} onInstalled={() => setStandalone(true)} />
-  }
-
-  // Step 3: User signed in AND running inside installed standalone app -> show app
+  // Step 2: User signed in -> show app
   return <App user={user} onLogout={logout} />
 }
