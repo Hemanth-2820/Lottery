@@ -55,11 +55,12 @@ function r_goa(string $html, int $h): ?string {
   return preg_match('/' . preg_quote($day) . '\s+' . $hh . '\s+([A-Z]?\s?\d{4,6})\b/', $t, $m) ? $m[1] : null;
 }
 
+// dearlottery.in lists newest results first. Each row is: series + number, draw number, then the date.
+// Only take the number that sits right before TODAY's date, so an older day's result is never used.
 function r_dear(string $html, int $h): ?string {
   global $ts; $t = text($html);
-  foreach ([date('d/m/y', $ts), date('d/m/Y', $ts), date('d-m-Y', $ts), date('d.m.Y', $ts)] as $d) {
-    $p = strpos($t, $d); if ($p === false) continue;
-    if (preg_match('/\b(\d{2}[A-Z])\s?(\d{5})\b/', substr($t, $p, 500), $m)) return $m[1] . ' ' . $m[2];
+  foreach ([date('d/m/y', $ts), date('d/m/Y', $ts), date('d.m.y', $ts), date('d-m-Y', $ts)] as $d) {
+    if (preg_match('/\b(\d{2}[A-Z])\s?(\d{5})\s*(?:Draw\s*No\.?\s*\d{1,4}\s*)?' . preg_quote($d, '/') . '/i', $t, $m)) return $m[1] . ' ' . $m[2];
   }
   return null;
 }
