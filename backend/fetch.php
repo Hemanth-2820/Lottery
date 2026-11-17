@@ -124,7 +124,9 @@ function publish(string $day, string $lot, int $h, string $d, string $full = '')
 
 function get_auto_status(): array {
   global $SRC;
-  $at = @file_get_contents(__DIR__ . '/.last_fetch') ?: (q("SELECT published_at FROM results WHERE src = 'auto' ORDER BY id DESC LIMIT 1")->fetchColumn() ?: null);
+  $at = @file_get_contents(__DIR__ . '/.last_fetch')
+    ?: (@file_exists(__DIR__ . '/last_fetch.json') ? date('Y-m-d H:i:s', filemtime(__DIR__ . '/last_fetch.json')) : null)
+    ?: (q("SELECT published_at FROM results WHERE src = 'auto' ORDER BY id DESC LIMIT 1")->fetchColumn() ?: null);
   $today = date('Y-m-d');
   $rows = [];
   foreach ($SRC as [$lot, $h, $url, $reader]) {
@@ -144,6 +146,7 @@ function get_auto_status(): array {
 function run_auto_fetch(bool $publish = true): array {
   global $SRC, $cache;
   @file_put_contents(__DIR__ . '/.last_fetch', date('Y-m-d H:i:s'));
+  @touch(__DIR__ . '/last_fetch.json');
   $today = date('Y-m-d');
   $rows = [];
   foreach ($SRC as [$lot, $h, $url, $reader]) {
@@ -180,6 +183,11 @@ function run_auto_fetch(bool $publish = true): array {
     }
   }
   return $rows;
+}
+
+// Alias for background or backup runner
+function run_fetch($day = null, bool $test = false): array {
+  return run_auto_fetch(!$test);
 }
 
 // Standalone execution (cPanel Cron Job or test URL)

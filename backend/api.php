@@ -155,9 +155,20 @@ try {
       'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on'], 'qr' => !empty($u['qr']) ? $u['qr'] : null], UPIS)]]);
   }
 
-  case 'results': {   // public: results of the last N days
+  case 'results': {   // public: results of the last N days. Also checks the result websites (max once a minute) as a backup for the cron job.
     $days = max(1, min(31, (int)arg('days', 7)));
-    out(['ok' => true, 'results' => q('SELECT day, lot, h, digits, published_at FROM results WHERE day >= CURDATE() - INTERVAL ? DAY ORDER BY day DESC, h DESC', [$days - 1])->fetchAll()]);
+    $json = json_encode(['ok' => true, 'results' => q('SELECT day, lot, h, digits, published_at FROM results WHERE day >= CURDATE() - INTERVAL ? DAY ORDER BY day DESC, h DESC', [$days - 1])->fetchAll()], JSON_UNESCAPED_UNICODE);
+    header('Content-Type: application/json; charset=utf-8'); echo $json;
+    $last = @filemtime(__DIR__ . '/last_fetch.json') ?: 0;
+    if (time() - $last >= 60 && function_exists('fastcgi_finish_request')) {
+      fastcgi_finish_request();                                   // the player already has the reply
+      $lock = fopen(__DIR__ . '/fetch.lock', 'c');
+      if ($lock && flock($lock, LOCK_EX | LOCK_NB)) {            // only one check at a time
+        if (time() - (@filemtime(__DIR__ . '/last_fetch.json') ?: 0) >= 60) { @touch(__DIR__ . '/last_fetch.json'); require_once __DIR__ . '/fetch.php'; run_fetch(today(), false); }
+        flock($lock, LOCK_UN);
+      }
+    }
+    exit;
   }
 
   case 'redeem_ref': {
