@@ -1,3 +1,4 @@
+import '@fontsource/lobster/400.css'
 import React, { useEffect, useRef, useState } from 'react'
 import Sphere3D from '../components/Sphere3D.jsx'
 import './splash.css'
@@ -45,12 +46,13 @@ export default function Splash({ onDone }) {
       <div className="s5-beams">{[0, 1, 2, 3, 4, 5].map(i => <i key={i} style={{ '--i': i }} />)}</div>
 
       <div className="s5-title">
-        <svg className="s5-loop" viewBox="0 0 300 90" aria-hidden="true">
-          <defs><linearGradient id="s5g" x1="0" x2="1"><stop offset="0" stopColor="#ff2d8a" /><stop offset=".35" stopColor="#ffd23f" /><stop offset=".65" stopColor="#2fe0ff" /><stop offset="1" stopColor="#a05cff" /></linearGradient></defs>
-          <path d="M150 45 C 110 5, 30 5, 30 45 C 30 85, 110 85, 150 45 C 190 5, 270 5, 270 45 C 270 85, 190 85, 150 45 Z" />
-        </svg>
-        <b className="s5-neon">LUCKY DIGITS</b>
-        <strong className="s5-sub">Pick 3 · Win Big!</strong>
+        <div className="s5-glowbg" />
+        <h1 className="s5-logo" aria-label="Lucky Digits">
+          <span className="l1">{'Lucky'.split('').map((c, i) => <em key={i} data-c={c} style={{ '--i': i }}>{c}</em>)}</span>
+          <span className="l2">{'Digits'.split('').map((c, i) => <em key={i} data-c={c} style={{ '--i': i + 5 }}>{c}</em>)}</span>
+        </h1>
+        {[[8, 30], [90, 22], [16, 78], [84, 74], [50, 4]].map(([x, y], i) => <i key={i} className="s5-twk" style={{ left: x + '%', top: y + '%', '--i': i }} />)}
+        <strong className="s5-tag"><b>PICK 3</b><i /><b>WIN BIG!</b></strong>
       </div>
 
       <div className="s5-halo" />
