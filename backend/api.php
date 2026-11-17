@@ -210,7 +210,29 @@ try {
     $rows = dailyRows($from, $to);
     $tot = ['paid' => 0, 'winnings' => 0, 'bonus' => 0, 'recharges' => 0, 'profit' => 0, 'tickets' => 0];
     foreach ($rows as $r) foreach ($tot as $k => $_) $tot[$k] += $r[$k];
-    out(['ok' => true, 'month' => substr($from, 0, 7), 'totals' => $tot, 'days' => $rows]);
+    $draws = q('SELECT lot, h, COUNT(*) tickets, SUM(total) sales, SUM(won + held) winnings FROM tickets WHERE day BETWEEN ? AND ? GROUP BY lot, h ORDER BY sales DESC', [$from, $to])->fetchAll();
+    foreach ($draws as &$x) { $x['h'] = (int)$x['h']; $x['tickets'] = (int)$x['tickets']; $x['sales'] = (float)$x['sales']; $x['winnings'] = (float)$x['winnings']; $x['profit'] = $x['sales'] - $x['winnings']; }
+    out(['ok' => true, 'month' => substr($from, 0, 7), 'totals' => $tot, 'days' => $rows, 'by_draw' => $draws]);
+  }
+
+  case 'exposure': {         // today's draws without a result: money bet, most-bet numbers, and what each result would cost
+    user('analyst'); $day = today(); $out = [];
+    foreach (LOTS as $lot => $hs) foreach ($hs as $h) {
+      if (q('SELECT 1 FROM results WHERE day = ? AND lot = ? AND h = ?', [$day, $lot, $h])->fetch()) continue;
+      $items = []; $sales = 0; $n = 0; $bets = [];
+      foreach (q("SELECT items, total FROM tickets WHERE day = ? AND lot = ? AND h = ? AND status = 'booked'", [$day, $lot, $h])->fetchAll() as $t) {
+        $n++; $sales += (float)$t['total'];
+        foreach (json_decode($t['items'], true) as $x) { $items[] = $x; $k = $x['pos'] . ' ' . $x['v']; $bets[$k] = ($bets[$k] ?? 0) + $x['price'] * $x['q']; }
+      }
+      $risk = [];
+      if ($items) for ($r = 0; $r < 1000; $r++) { $d = sprintf('%03d', $r); $p = 0; foreach ($items as $x) $p += lineWin($x, $d); if ($p) $risk[$d] = $p; }
+      arsort($risk); arsort($bets);
+      $out[] = ['lot' => $lot, 'h' => $h, 'closes_in' => max(0, secsTo($day, $h) - CLOSE), 'tickets' => $n, 'sales' => $sales,
+        'worst' => array_map(fn($d, $p) => ['result' => sprintf('%03d', $d), 'payout' => $p], array_slice(array_keys($risk), 0, 5), array_slice(array_values($risk), 0, 5)),
+        'top_bets' => array_map(fn($k, $a) => ['bet' => $k, 'amount' => $a], array_slice(array_keys($bets), 0, 6), array_slice(array_values($bets), 0, 6))];
+    }
+    usort($out, fn($a, $b) => $a['h'] <=> $b['h']);
+    out(['ok' => true, 'day' => $day, 'draws' => $out]);
   }
 
   case 'analytics_excel': {  // download: api.php?a=analytics_excel&month=2026-11&token=...
