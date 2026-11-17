@@ -152,7 +152,7 @@ try {
       'lots' => array_map(fn($k, $h) => ['k' => $k, 'h' => array_values($h)], array_keys(LOTS), array_values(LOTS)),
       'close' => CLOSE, 'price' => array_values(PRICE), 'win' => array_values(WIN), 'last' => [WIN_LAST2, WIN_LAST1],
       'approval' => APPROVAL, 'ref_bonus' => REF_BONUS, 'upi' => ['id' => UPI_ID, 'name' => UPI_NAME],
-      'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on']], UPIS)]]);
+      'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on'], 'qr' => !empty($u['qr']) ? $u['qr'] : null], UPIS)]]);
   }
 
   case 'results': {   // public: results of the last N days
@@ -300,7 +300,8 @@ try {
       if (!preg_match('/^[a-zA-Z0-9.\-_]{2,60}@[a-zA-Z][a-zA-Z0-9]{1,30}$/', $id)) fail('UPI ' . ($i + 1) . ': enter a valid UPI ID, like name@okaxis');
       if ($nm === '') fail('UPI ' . ($i + 1) . ': enter the name players will see');
       foreach ($new['upis'] as $y) if (strcasecmp($y['id'], $id) === 0) fail("$id is added twice");
-      $new['upis'][] = ['id' => $id, 'name' => $nm, 'on' => !empty($x['on'])];
+      $qr = (string)($x['qr'] ?? ''); if ($qr !== '' && !preg_match('#^qr/[a-f0-9]{16}\.(png|jpg|webp)$#', $qr)) $qr = '';
+      $new['upis'][] = ['id' => $id, 'name' => $nm, 'on' => !empty($x['on']), 'qr' => $qr];
     }
     $on = array_values(array_filter($new['upis'], fn($u) => $u['on']));
     if (!$on) fail('Turn on at least one UPI ID so players can add money');
@@ -308,6 +309,18 @@ try {
     $new['upi_id'] = $on[0]['id']; $new['upi_name'] = $on[0]['name'];
     if (file_put_contents(__DIR__ . '/settings.json', json_encode($new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) fail('Could not save. Check that the api folder is writable.', 500);
     out(['ok' => true]);
+  }
+
+  case 'admin_upload_qr': {  // {image: "data:image/png;base64,..."} -> saves the owner's QR picture, returns its path
+    user('admin'); $d = (string)arg('image');
+    if (!preg_match('#^data:image/(png|jpe?g|webp);base64,(.+)$#', $d, $m)) fail('Choose a PNG, JPG or WEBP picture');
+    $bin = base64_decode($m[2], true); if ($bin === false || strlen($bin) > 1500000) fail('Picture must be smaller than 1.5 MB');
+    $info = @getimagesizefromstring($bin); if (!$info || !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP], true)) fail('This file is not a picture');
+    $ext = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_WEBP => 'webp'][$info[2]];
+    if (!is_dir(__DIR__ . '/qr')) @mkdir(__DIR__ . '/qr', 0755);
+    $name = 'qr/' . bin2hex(random_bytes(8)) . '.' . $ext;
+    if (file_put_contents(__DIR__ . '/' . $name, $bin) === false) fail('Could not save the picture. Check folder permissions.', 500);
+    out(['ok' => true, 'path' => $name]);
   }
 
   case 'admin_bigwin': {     // {id, approve: true|false}

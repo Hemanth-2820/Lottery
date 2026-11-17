@@ -627,3 +627,15 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 .upi-c i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:800 13px var(--mono,monospace);font-style:normal;background:rgba(255,255,255,.12);flex:none}
 .upi-c span{display:flex;flex-direction:column;min-width:0}.upi-c b{font-size:14px;overflow:hidden;text-overflow:ellipsis}.upi-c small{font-size:12px;color:#cbb8ff}
 .upi-c.on{border-color:var(--amber);background:rgba(255,183,3,.14);box-shadow:0 0 12px rgba(255,183,3,.35)}.upi-c.on i{background:var(--amber);color:#2a1000}
+
+/* qr box */
+.qrbox{display:flex;align-items:center;gap:14px;margin-top:12px;padding:12px;border-radius:16px;background:rgba(0,0,0,.3);border:1.5px dashed rgba(255,215,90,.6)}
+.qrbox img{width:120px;height:120px;border-radius:10px;background:#fff;padding:6px;flex:none;object-fit:contain}
+.qrbox span{display:flex;flex-direction:column;gap:3px;min-width:0}.qrbox b{font-size:15px}.qrbox small{font-size:12px;color:#cbb8ff;overflow-wrap:anywhere}
+
+/* pay with a chosen UPI app */
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.app{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;background:rgba(0,0,0,.3);border:1.5px solid rgba(190,145,255,.35);color:#fff;font:700 12px inherit}
+.app i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--c);font:900 18px sans-serif;font-style:normal;color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--c) 60%,transparent)}
+.app:active{transform:scale(.95)}.app.dis{opacity:.5}
+.upibtn.other{margin-top:10px;background:rgba(255,255,255,.08);color:#fff;box-shadow:none;border:1.5px solid rgba(255,255,255,.2)}

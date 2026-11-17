@@ -1,7 +1,18 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
+import { API_URL } from '../lib/api.js'
 import { APPROVAL, UPI, UPIS, inr } from '../lib/lottery.js'
 
 const AMTS = [100, 200, 500, 1000]
+// UPI apps. Android opens the exact app through an intent link; iPhone uses each app's own link.
+const APPS = [
+  { k: 'phonepe', n: 'PhonePe', c: '#5f259f', pkg: 'com.phonepe.app', ios: 'phonepe://pay' },
+  { k: 'gpay', n: 'Google Pay', c: '#1a73e8', pkg: 'com.google.android.apps.nbu.paisa.user', ios: 'gpay://upi/pay' },
+  { k: 'paytm', n: 'Paytm', c: '#00b9f1', pkg: 'net.one97.paytm', ios: 'paytmmp://pay' },
+  { k: 'bhim', n: 'BHIM', c: '#e86b1c', pkg: 'in.org.npci.upiapp', ios: 'bhim://pay' },
+]
+const isAndroid = () => /android/i.test(navigator.userAgent)
+const appLink = (a, q) => isAndroid() ? `intent://pay?${q}#Intent;scheme=upi;package=${a.pkg};end` : `${a.ios}?${q}`
 
 // Wallet sheet: balance, add money by UPI, withdraw to UPI, and the request lists.
 export default function Wallet({ shown, held, recharges, toast, onRequest, onConfirm, upi = UPI, withdrawals = [], onWithdraw }) {
@@ -18,8 +29,17 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
     try { await onWithdraw(wAmt, wUpi.trim()); try { localStorage.setItem('l3upi', wUpi.trim()) } catch {} setWAmt(0); setAsk(false) } finally { setBusy(false) }
   }
   const ok = amt >= 10 && amt <= 50000
-  // Standard UPI payment link: on a phone it opens the installed UPI apps with payee and amount filled in.
-  const link = `upi://pay?pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&am=${amt}.00&cu=INR&tn=${encodeURIComponent('Murugan wallet')}`
+
+  const q = `pa=${encodeURIComponent(UPI_.id)}&pn=${encodeURIComponent(UPI_.name)}&am=${amt}.00&cu=INR&tn=${encodeURIComponent('Murugan wallet')}`
+  const link = 'upi://pay?' + q
+  const openApp = a => { if (!ok) return toast('Enter an amount from ₹10 to ₹50,000'); window.location.href = appLink(a, q) }
+
+  const [qr, setQr] = useState('')
+  useEffect(() => {
+    if (UPI_.qr) { setQr(API_URL.replace(/[^/]*$/, '') + UPI_.qr); return }
+    QRCode.toDataURL(link, { margin: 1, width: 300 }).then(setQr, () => setQr(''))
+  }, [link, UPI_.qr])
+
   const copy = async () => { try { await navigator.clipboard.writeText(UPI_.id); toast('UPI ID copied') } catch { toast('UPI ID: ' + UPI_.id) } }
   const submit = e => {
     e.preventDefault()
@@ -64,8 +84,13 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
         <div className="upis">{list.map((u, i) => <button key={u.id} className={'upi-c' + (UPI_.id === u.id ? ' on' : '')} onClick={() => setPick(i)}><i>{UPI_.id === u.id ? '✓' : i + 1}</i><span><b>{u.id}</b><small>{u.name}</small></span></button>)}</div></>}
 
       <div className="upi"><div><small>Pay to UPI ID</small><b>{UPI_.id}</b></div><button onClick={copy}>Copy</button></div>
-      <a className={'upibtn' + (ok ? '' : ' dis')} href={ok ? link : undefined}>Pay {inr(amt)} with UPI app ›</a>
-      <small className="hint">Opens the UPI apps on your phone with the amount already filled in.</small>
+
+      {qr && <div className="qrbox"><img src={qr} alt={'Scan to pay ' + UPI_.id} /><span><b>Scan with any UPI app</b>{UPI_.qr ? <small>Enter {inr(amt)} in your UPI app</small> : <small>{inr(amt)} is already filled in</small>}<small>{UPI_.id}</small></span></div>}
+
+      <h5>Pay {inr(amt)} with</h5>
+      <div className="apps">{APPS.map(a => <button key={a.k} className={'app' + (ok ? '' : ' dis')} style={{ '--c': a.c }} onClick={() => openApp(a)}><i>{a.n[0]}</i><span>{a.n}</span></button>)}</div>
+      <a className={'upibtn other' + (ok ? '' : ' dis')} href={ok ? link : undefined}>Other UPI app ›</a>
+      <small className="hint">Opens the app with {UPI_.id} and {inr(amt)} already filled in. Then come back and enter the UTR below.</small>
 
       <form className="utr" onSubmit={submit}>
         <label htmlFor="w-utr">After paying to <b>{UPI_.id}</b>, enter the 12-digit UPI reference number (UTR) shown in your UPI app.</label>
