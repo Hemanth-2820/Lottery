@@ -98,7 +98,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
     api('withdrawals').then(res => {
       if (res.withdrawals) setWithdrawals(res.withdrawals)
     }).catch(() => {})
-    api('results').then(res => {
+    api('results', { days: 31 }).then(res => {
       if (res.results) {
         const p = {}
         res.results.forEach(r => { p[slotKey(r.day, r.lot, r.h)] = r.digits })

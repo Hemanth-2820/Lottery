@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import Ball from '../components/Ball.jsx'
 import { CLOSE, LOTC, SLOTS, dayKey, dayName, hms, hrs, inr, lbl, resultOf, slotKey } from '../lib/lottery.js'
 
-const LEFT = [22, 50.2, 78.8], DAYS = [0, 1, 2]
+const LEFT = [22, 50.2, 78.8], DAYS = [...Array(31).keys()]   // today and the 30 days before it
 
 // Results by slot. The domes show the selected slot; the list below has every slot of the chosen day.
 export default function Result({ tickets, published, rsel, drawing, onSelect, onDemo }) {
-  const [off, setOff] = useState(0), top = useRef()
+  const [off, setOff] = useState(0), [cal, setCal] = useState(false), top = useRef()
   useEffect(() => { const o = DAYS.find(x => dayKey(x) === rsel.day); if (o !== undefined) setOff(o); top.current?.scrollTo({ top: 0, behavior: 'smooth' }) }, [rsel])
 
   const day = dayKey(off), h = hrs()
@@ -55,7 +55,11 @@ export default function Result({ tickets, published, rsel, drawing, onSelect, on
         </div>
       ))}
 
-      <div className="dtabs">{DAYS.map(o => <button key={o} className={o === off ? 'on' : ''} onClick={() => setOff(o)}>{dayName(o)}</button>)}</div>
+      <div className="dtabs">
+        {[0, 1, 2].map(o => <button key={o} className={o === off ? 'on' : ''} onClick={() => { setOff(o); setCal(false) }}>{dayName(o)}</button>)}
+        <button className={'dcal' + (off > 2 || cal ? ' on' : '')} onClick={() => setCal(c => !c)}>📅 {off > 2 ? dayName(off) : 'Calendar'}</button>
+      </div>
+      {cal && <Calendar off={off} published={published} onPick={o => { setOff(o); setCal(false) }} />}
 
       <div className="rlist" key={day}>
         {SLOTS.map((s, i) => {
@@ -80,3 +84,31 @@ export default function Result({ tickets, published, rsel, drawing, onSelect, on
     </section>
   )
 }
+
+// month calendar: pick any of the last 31 days; days that have results get a gold dot
+function Calendar({ off, published, onPick }) {
+  const today = dayKey(0)
+  const [ym, setYm] = useState(dayKey(off).slice(0, 7))
+  const [y, m] = ym.split('-').map(Number)
+  const first = new Date(y, m - 1, 1).getDay(), n = new Date(y, m, 0).getDate()
+  const has = new Set(Object.keys(published).map(k => k.split('|')[0]))
+  const offOf = d => Math.round((new Date(today) - new Date(d)) / 864e5)
+  const minYm = dayKey(30).slice(0, 7), canPrev = ym > minYm, canNext = ym < today.slice(0, 7)
+  const move = d => { const x = new Date(y, m - 1 + d, 1); setYm(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')) }
+  const title = new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  return (
+    <div className="cal">
+      <div className="cal-hd"><button disabled={!canPrev} onClick={() => move(-1)} aria-label="Previous month">‹</button><b>{title}</b><button disabled={!canNext} onClick={() => move(1)} aria-label="Next month">›</button></div>
+      <div className="cal-wk">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <i key={i}>{d}</i>)}</div>
+      <div className="cal-gr">
+        {Array.from({ length: first }, (_, i) => <span key={'e' + i} />)}
+        {Array.from({ length: n }, (_, i) => {
+          const d = ym + '-' + String(i + 1).padStart(2, '0'), o = offOf(d), ok = o >= 0 && o <= 30
+          return <button key={d} disabled={!ok} className={(o === off ? 'sel ' : '') + (d === today ? 'tod ' : '') + (has.has(d) ? 'has' : '')} onClick={() => onPick(o)}>{i + 1}</button>
+        })}
+      </div>
+      <small className="cal-note"><i /> results available · last 30 days</small>
+    </div>
+  )
+}
+
