@@ -681,3 +681,17 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 #ttl{overflow:visible}
 #ttl .brand span{font-size:14px;letter-spacing:.5px}
 #ttl .brand img{width:26px;height:26px}
+
+/* ticket list on the Play screen: wraps into rows, no sideways scrolling */
+.tk{width:100%;padding:10px;border-radius:18px;background:rgba(20,6,50,.55);box-shadow:inset 0 0 0 1.5px rgba(255,210,63,.35)}
+.tk-hd{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 6px}.tk-hd b{font-size:14px}.tk-hd span{font:800 13px var(--mono);color:#ffd23f}
+.tk-grp+.tk-grp{margin-top:8px}
+.tk-type{display:block;margin:0 2px 5px;font-size:11px;font-weight:700;letter-spacing:.3px;color:#cdbdf5}
+.tk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.tk-chip{display:flex;align-items:center;gap:6px;padding:5px 5px 5px 8px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);animation:tkin .3s cubic-bezier(.3,1.5,.5,1)}
+.tk-balls{display:flex;gap:3px}.tk-balls i{display:flex;flex-direction:column;align-items:center;font-style:normal}
+.tk-balls em{font:800 8px var(--mono);font-style:normal;opacity:.7;line-height:1;margin-bottom:1px}
+.tk-q{font:800 12px var(--mono);color:#ffd23f;margin-left:auto}
+.tk-chip button{width:24px;height:24px;flex:none;border:0;border-radius:50%;background:rgba(255,70,100,.22);color:#ff8fa3;font-size:12px;cursor:pointer}
+@keyframes tkin{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+

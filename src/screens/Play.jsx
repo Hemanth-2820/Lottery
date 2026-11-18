@@ -60,11 +60,28 @@ export default function Play({ show, mode, tubes, shown, target, qty, cart, bump
         {[...Array(10)].map((_, d) => <button key={d} className={tubes.includes(d) ? 'sel' : ''} aria-label={'Ball ' + d} onClick={e => onBall(d, e.currentTarget)}><Ball n={d} size={46} /></button>)}
       </div>
 
-      {/* the player's numbers, each removable */}
-      <div className="perm">
-        {cart.length ? cart.map((x, i) => <span key={x.pos + x.v}>{x.pos} {x.v} ×{x.q}<button aria-label={`Remove ${x.pos} ${x.v}`} onClick={() => onDel(i)}>✕</button></span>)
-          : <small>Your numbers will show here. You can remove any of them.</small>}
-      </div>
+      {/* the player's numbers: wrapped grid (no sideways scrolling), grouped by type, each removable */}
+      {cart.length ? (
+        <div className="tk">
+          <div className="tk-hd"><b>Your numbers</b><span>{cart.length} bet{cart.length > 1 ? 's' : ''} · {inr(cart.reduce((a, x) => a + PRICE[x.pos.length - 1] * x.q, 0))}</span></div>
+          {[3, 2, 1].map(n => {
+            const rows = cart.map((x, i) => [x, i]).filter(([x]) => x.pos.length === n)
+            if (!rows.length) return null
+            return (
+              <div key={n} className="tk-grp">
+                <small className="tk-type">{['', 'Single', 'Double', 'Triple'][n]} · {inr(PRICE[n - 1])} each · win {inr(WIN[n - 1])}</small>
+                <div className="tk-grid">{rows.map(([x, i]) => (
+                  <div key={x.pos + x.v} className="tk-chip">
+                    <span className="tk-balls">{[...x.pos].map((p, j) => <i key={j}><em>{p}</em><Ball n={+x.v[j]} size={24} /></i>)}</span>
+                    <span className="tk-q">×{x.q}</span>
+                    <button aria-label={`Remove ${x.pos} ${x.v}`} onClick={() => onDel(i)}>✕</button>
+                  </div>
+                ))}</div>
+              </div>
+            )
+          })}
+        </div>
+      ) : <div className="perm"><small>Your numbers will show here. You can remove any of them.</small></div>}
 
       <div className="act">
         <div className="qty gl"><button aria-label="Less" onClick={() => onQty(-1)}>−</button><b>{qty}</b><button aria-label="More" onClick={() => onQty(1)}>+</button></div>
