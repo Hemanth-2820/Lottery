@@ -15,16 +15,29 @@ fit(); window.addEventListener('resize', fit)
 
 createRoot(document.getElementById('root')).render(<Root />)
 
-// needed so phones can install the app on the home screen, and auto-update when new version deploys
+// needed so phones can install the app on the home screen; updateViaCache 'none' = always check for a new sw.js
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
-    reg.update().catch(() => {})
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+    const check = () => reg.update().catch(() => {})
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check() })
+    setInterval(check, 5 * 60 * 1000)
   }).catch(() => {})
-  let refreshing = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
-      refreshing = true
-      window.location.reload()
-    }
-  })
 }
+
+// Auto-update: when the app is opened again (or every 2 minutes), ask the server for the newest page.
+// If a new version was deployed, reload once so the player sees it — no clearing cache, no reinstall.
+const myBuild = [...document.scripts].map(s => s.src).find(s => /\/assets\/index-.*\.js/.test(s)) || ''
+let checking = false
+const checkNewVersion = async () => {
+  if (checking || !myBuild) return; checking = true
+  try {
+    const html = await (await fetch('/?v=' + Date.now(), { cache: 'no-store' })).text()
+    const m = html.match(/\/assets\/index-[\w-]+\.js/)
+    if (m && !myBuild.endsWith(m[0])) {
+      let last = 0; try { last = +sessionStorage.getItem('mgReload') || 0 } catch {}
+      if (Date.now() - last > 60000) { try { sessionStorage.setItem('mgReload', Date.now()) } catch {} location.reload() }   // never reload in a loop
+    }
+  } catch {} finally { checking = false }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewVersion() })
+setInterval(checkNewVersion, 2 * 60 * 1000)
