@@ -111,12 +111,83 @@ function smtpSend(string $to, string $subject, string $html): bool {
 
 defined('BRAND') or define('BRAND', 'Murugan');   // name shown in every email
 
+// ===== Murugan email design: real artwork + gold frame. Works in Gmail, Outlook, Yahoo, Apple Mail (tables + inline styles). =====
+// Pictures live on your server in the folder  api.fashionsnap.in/mail/  (m-header.jpg, m-badge.jpg, m-cards.jpg)
+defined('APP_URL')  or define('APP_URL', 'https://murugan-vert.vercel.app');
+defined('MAIL_IMG') or define('MAIL_IMG', 'https://api.fashionsnap.in/mail/');
+
+function mailShell(string $hero, string $inner, string $preheader = ''): string {
+  $f = "font-family:'Trebuchet MS',Arial,sans-serif";
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>'
+  . '<body style="margin:0;padding:0;background:#0b031c">'
+  . '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#0b031c">' . esc($preheader) . '&#847; &#847; &#847; &#847; &#847; &#847;</div>'
+  . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b031c" style="background:#0b031c"><tr><td align="center" style="padding:24px 10px">'
+  . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td bgcolor="#d9a520" style="padding:2px;border-radius:28px;background:#d9a520;background-image:linear-gradient(160deg,#fff1a8,#e3a91c 30%,#8a5a00 55%,#ffd76a 80%,#b97a10)">'
+  . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1a0640" style="background:#1a0640;border-radius:26px;overflow:hidden">'
+  . '<tr><td style="padding:0;line-height:0"><img src="' . MAIL_IMG . $hero . '" width="600" alt="' . esc(BRAND) . ' Lucky Draw" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:26px 26px 0 0"></td></tr>'
+  . $inner
+  . '<tr><td style="padding:6px 0 0;line-height:0"><img src="' . MAIL_IMG . 'm-cards.jpg" width="600" alt="Dear · Kerala · Goa Queen · Sikkim · Punjab" style="display:block;width:100%;max-width:600px;height:auto;border:0"></td></tr>'
+  . '<tr><td align="center" style="padding:14px 24px 26px;' . $f . '">'
+  . '<div style="color:#ffd23f;font-size:15px;font-weight:bold;letter-spacing:.5px">Vetrivel Muruganukku Arogara 🙏</div>'
+  . '<div style="height:1px;background:#3b1a7a;margin:12px 40px"></div>'
+  . '<div style="color:#9c88cf;font-size:11px;line-height:1.6">' . date('d M Y · g:i A') . ' IST<br>Automatic message from ' . esc(BRAND) . ' Lucky Draw · Play responsibly · 18+</div>'
+  . '</td></tr></table></td></tr></table></td></tr></table></body></html>';
+}
+
+// $title: heading · $big: amount or word · $lines: details ("Label: value" / "Label <b>value</b>" become rows) · $color: #16c784 good, #ff5c7a problem, else gold
+function mailHtml(string $title, string $big, array $lines = [], string $color = '#ffd700'): string {
+  $c = strtolower($color); $kind = $c === '#16c784' ? 'good' : ($c === '#ff5c7a' ? 'bad' : 'info');
+  $acc = ['good' => '#2ee59d', 'bad' => '#ff6b8a', 'info' => '#ffd23f'][$kind];
+  $tag = ['good' => '✦ GREAT NEWS ✦', 'bad' => '✦ UPDATE ✦', 'info' => '✦ NOTIFICATION ✦'][$kind];
+  $f = "font-family:'Trebuchet MS',Arial,sans-serif";
+  $rows = ''; $notes = '';
+  foreach (array_filter($lines, fn($x) => $x !== '') as $x) {
+    if (preg_match('/^([^<:]{2,26}):\s*(.+)$/u', $x, $m) || preg_match('/^([^<:]{2,26})\s(<b>.+<\/b>)$/u', $x, $m))
+      $rows .= '<tr><td style="padding:11px 18px;color:#bda9ef;font-size:13px;border-top:1px dashed #4a2595;' . $f . '">' . trim($m[1]) . '</td><td align="right" style="padding:11px 18px;color:#ffffff;font-size:15px;font-weight:bold;border-top:1px dashed #4a2595;' . $f . '">' . strip_tags(trim($m[2]), '<b>') . '</td></tr>';
+    else $notes .= '<div style="color:#e9defe;font-size:14px;line-height:1.6;margin-top:6px">' . $x . '</div>';
+  }
+  $inner =
+    '<tr><td align="center" style="padding:6px 28px 0;' . $f . '">'
+    . '<div style="color:' . $acc . ';font-size:11px;font-weight:bold;letter-spacing:4px">' . $tag . '</div>'
+    . '<div style="font-family:Georgia,\'Times New Roman\',serif;font-style:italic;font-weight:bold;font-size:30px;line-height:1.2;color:#ffffff;margin-top:8px">' . $title . '</div>'
+    . '</td></tr>'
+    . '<tr><td align="center" style="padding:20px 28px 6px">'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="' . $acc . '" style="padding:2px;border-radius:22px;background:' . $acc . ';background-image:linear-gradient(135deg,#ffffff,' . $acc . ' 40%,' . $acc . ' 70%,#ffffff)">'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#12042f" style="padding:16px 44px;border-radius:20px;background:#12042f;background-image:radial-gradient(ellipse at top,#3a1680,#12042f 70%)">'
+    . '<div style="' . $f . ';font-size:46px;line-height:1;font-weight:bold;color:' . $acc . ';letter-spacing:1px">' . $big . '</div>'
+    . '</td></tr></table></td></tr></table>'
+    . ($notes ? '<div style="padding:10px 6px 0;' . $f . '">' . $notes . '</div>' : '')
+    . '</td></tr>'
+    . ($rows ? '<tr><td style="padding:18px 28px 4px">'
+      . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#240b57" style="background:#240b57;border-radius:16px;border:1px solid #5b2fb0">'
+      . '<tr><td colspan="2" style="padding:12px 18px;color:#ffd23f;font-size:12px;font-weight:bold;letter-spacing:3px;' . $f . '">🎟&nbsp; DETAILS</td></tr>' . $rows . '</table></td></tr>' : '')
+    . '<tr><td align="center" style="padding:24px 28px 14px">'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#ffc21f" style="border-radius:99px;background:#ffc21f;background-image:linear-gradient(180deg,#fff27a,#ffcf1f 45%,#f0a000);box-shadow:0 5px 0 #a56200">'
+    . '<a href="' . APP_URL . '" style="display:inline-block;padding:15px 42px;' . $f . ';font-size:17px;font-weight:bold;color:#3a1400;text-decoration:none;letter-spacing:.5px">Open ' . esc(BRAND) . ' App&nbsp; ›</a>'
+    . '</td></tr></table></td></tr>';
+  return mailShell('m-header.jpg', $inner, strip_tags($title) . ' · ' . strip_tags($big));
+}
+
+// login code email: the Murugan Lucky Draw badge and the code in gold boxes
+function codeHtml(string $code): string {
+  $f = "font-family:'Trebuchet MS',Arial,sans-serif"; $boxes = '';
+  foreach (str_split($code) as $d) $boxes .= '<td style="padding:0 4px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#e3a91c" style="padding:2px;border-radius:14px;background:#e3a91c;background-image:linear-gradient(160deg,#fff1a8,#e3a91c 45%,#8a5a00)"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" valign="middle" width="44" height="58" bgcolor="#12042f" style="width:44px;height:58px;border-radius:12px;background:#12042f;' . $f . ';font-size:30px;font-weight:bold;color:#ffd23f">' . $d . '</td></tr></table></td></tr></table></td>';
+  $inner = '<tr><td align="center" style="padding:4px 28px 0;' . $f . '">'
+    . '<div style="color:#ffd23f;font-size:11px;font-weight:bold;letter-spacing:4px">✦ SIGN IN ✦</div>'
+    . '<div style="font-family:Georgia,\'Times New Roman\',serif;font-style:italic;font-weight:bold;font-size:30px;color:#ffffff;margin-top:8px">Your login code</div>'
+    . '<div style="color:#c9b8f2;font-size:14px;margin-top:6px">Type this code in the ' . esc(BRAND) . ' app</div>'
+    . '</td></tr>'
+    . '<tr><td align="center" style="padding:22px 10px 8px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' . $boxes . '</tr></table></td></tr>'
+    . '<tr><td align="center" style="padding:10px 28px 22px;' . $f . '">'
+    . '<div style="display:inline-block;padding:7px 16px;border-radius:99px;background:#2a0d63;color:#ffd23f;font-size:13px;font-weight:bold">⏱ Valid for 10 minutes</div>'
+    . '<div style="color:#9c88cf;font-size:12px;line-height:1.6;margin-top:14px">Never share this code with anyone.<br>Didn\'t ask for it? Just ignore this email.</div>'
+    . '</td></tr>';
+  return mailShell('m-badge.jpg', $inner, 'Your ' . BRAND . ' login code is ' . $code);
+}
+
 function sendCode(string $email, string $code): bool {
   $subject = 'Your ' . BRAND . ' sign-in code: ' . $code;
-  $html = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border-radius:16px;background:#1b0d3a;color:#fff;text-align:center">'
-    . '<div style="font-size:26px">🦚</div><h2 style="color:#ffd700;margin:0 0 8px;letter-spacing:3px">' . strtoupper(BRAND) . '</h2><p>Your sign-in code is</p>'
-    . '<div style="font-size:34px;letter-spacing:8px;font-weight:bold;color:#ffd700;margin:12px 0">' . $code . '</div>'
-    . '<p style="color:#cbb8ff;font-size:13px">It works for 10 minutes. If you did not ask for it, ignore this email.</p></div>';
+  $html = codeHtml($code);
   if (SMTP_USER !== '') return smtpSend($email, $subject, $html);
   $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . BRAND . ' <' . MAIL_FROM . ">\r\n";
   return @mail($email, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers, '-f' . MAIL_FROM);
@@ -140,17 +211,6 @@ function rs($n): string { return '₹' . number_format((float)$n, ((float)$n == 
 function esc($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function drawName(string $lot, int $h): string { return $lot . ' ' . date('g A', mktime($h, 0)); }
 
-// one email in the Murugan style: title, big line, small lines
-function mailHtml(string $title, string $big, array $lines = [], string $color = '#ffd700'): string {
-  $l = ''; foreach (array_filter($lines, fn($x) => $x !== '') as $x) $l .= '<p style="margin:6px 0;color:#e6dcff;font-size:14px">' . $x . '</p>';
-  return '<div style="font-family:Arial,sans-serif;max-width:460px;margin:auto;padding:24px;border-radius:16px;background:#1b0d3a;color:#fff;text-align:center">'
-    . '<div style="font-size:26px">🦚</div><div style="color:#ffd700;font-weight:bold;letter-spacing:3px;font-size:16px">' . esc(strtoupper(BRAND)) . '</div>'
-    . '<div style="color:#cbb8ff;font-size:11px;letter-spacing:1px">LUCKY DRAW</div>'
-    . '<h2 style="margin:10px 0 6px;font-size:20px">' . $title . '</h2>'
-    . '<div style="font-size:30px;font-weight:bold;color:' . $color . ';margin:10px 0">' . $big . '</div>' . $l
-    . '<p style="margin-top:18px;color:#9d8cc9;font-size:12px">' . date('d M Y, g:i A') . '</p>'
-    . '<p style="margin:6px 0 0;color:#ffd700;font-size:12px">' . esc(BRAND) . ' Lucky Draw · Vetrivel Muruganukku Arogara 🙏</p></div>';
-}
 function mailSend(string $to, string $subject, string $html): bool {
   if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
   if (SMTP_USER !== '') return smtpSend($to, $subject, $html);
