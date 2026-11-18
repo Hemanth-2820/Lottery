@@ -121,3 +121,67 @@ function sendCode(string $email, string $code): bool {
   $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . MAIL_FROM_NAME . ' <' . MAIL_FROM . ">\r\n";
   return @mail($email, $subject, $html, $headers, '-f' . MAIL_FROM);
 }
+
+// ================= emails =================
+defined('BRAND') or define('BRAND', 'Murugan');   // name shown in every email
+
+// Who gets the owner alerts: set in Admin -> Settings ("Alert emails to"); falls back to the first ADMIN_EMAILS address.
+function alertEmail(): string {
+  $st = is_file(__DIR__ . '/settings.json') ? (json_decode((string)file_get_contents(__DIR__ . '/settings.json'), true) ?: []) : [];
+  $e = trim((string)($st['alert_email'] ?? ''));
+  if ($e === '' && defined('ALERT_EMAIL')) $e = ALERT_EMAIL;
+  if ($e === '') $e = ADMIN_EMAILS[0] ?? '';
+  return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+}
+function winMailMin(): int {   // players are emailed about wins of this amount or more (0 = every win)
+  $st = is_file(__DIR__ . '/settings.json') ? (json_decode((string)file_get_contents(__DIR__ . '/settings.json'), true) ?: []) : [];
+  return max(0, (int)($st['win_mail_min'] ?? 0));
+}
+function rs($n): string { return '₹' . number_format((float)$n, ((float)$n == (int)$n) ? 0 : 2); }
+function esc($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function drawName(string $lot, int $h): string { return $lot . ' ' . date('g A', mktime($h, 0)); }
+
+// one email in the Murugan style: title, big line, small lines
+function mailHtml(string $title, string $big, array $lines = [], string $color = '#ffd700'): string {
+  $l = ''; foreach (array_filter($lines, fn($x) => $x !== '') as $x) $l .= '<p style="margin:6px 0;color:#e6dcff;font-size:14px">' . $x . '</p>';
+  return '<div style="font-family:Arial,sans-serif;max-width:460px;margin:auto;padding:24px;border-radius:16px;background:#1b0d3a;color:#fff;text-align:center">'
+    . '<div style="font-size:26px">🦚</div><div style="color:#ffd700;font-weight:bold;letter-spacing:3px;font-size:16px">' . esc(strtoupper(BRAND)) . '</div>'
+    . '<div style="color:#cbb8ff;font-size:11px;letter-spacing:1px">LUCKY DRAW</div>'
+    . '<h2 style="margin:10px 0 6px;font-size:20px">' . $title . '</h2>'
+    . '<div style="font-size:30px;font-weight:bold;color:' . $color . ';margin:10px 0">' . $big . '</div>' . $l
+    . '<p style="margin-top:18px;color:#9d8cc9;font-size:12px">' . date('d M Y, g:i A') . '</p>'
+    . '<p style="margin:6px 0 0;color:#ffd700;font-size:12px">' . esc(BRAND) . ' Lucky Draw · Vetrivel Muruganukku Arogara 🙏</p></div>';
+}
+function mailSend(string $to, string $subject, string $html): bool {
+  if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+  if (SMTP_USER !== '') return smtpSend($to, $subject, $html);
+  $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . BRAND . ' <' . MAIL_FROM . ">\r\n";
+  return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers, '-f' . MAIL_FROM);
+}
+// queue an email; all queued emails go out AFTER the reply is sent, so buttons in the app stay fast
+function mailLater(string $to, string $subject, string $html): void {
+  static $queued = false; global $MAILQ;
+  if ($to === '') return;
+  $MAILQ[] = [$to, $subject, $html];
+  if (!$queued) { $queued = true; register_shutdown_function(function () {
+    global $MAILQ; if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+    @set_time_limit(120); foreach ((array)$MAILQ as [$t, $s, $h]) { try { mailSend($t, $s, $h); } catch (Throwable $e) { error_log('mail: ' . $e->getMessage()); } }
+  }); }
+}
+function toPlayer(int $uid, string $subject, string $html): void {
+  $e = q('SELECT email FROM users WHERE id = ?', [$uid])->fetchColumn(); if ($e) mailLater($e, $subject, $html);
+}
+function toOwner(string $subject, string $html): void { mailLater(alertEmail(), $subject, $html); }
+
+// emails after a result is published: $wins = list of [user_id, code, won, held]
+function mailResult(string $lot, int $h, string $digits, array $wins): void {
+  $dn = drawName($lot, $h); $min = winMailMin(); $big = [];
+  foreach ($wins as [$uid, $code, $won, $held]) {
+    if ($won > 0 && $won >= $min) toPlayer($uid, "You won " . rs($won) . " in $dn 🎉", mailHtml('Congratulations, you won!', rs($won), ["$dn result: <b>$digits</b>", "Ticket <b>" . esc($code) . "</b>", 'The money is already in your wallet.'], '#16c784'));
+    if ($held > 0) {
+      toPlayer($uid, "Big win " . rs($held) . " in $dn 🏆", mailHtml('Big win! 🏆', rs($held), ["$dn result: <b>$digits</b>", "Ticket <b>" . esc($code) . "</b>", 'Wins this big are checked by the owner. You will get an email as soon as it is added to your wallet.'], '#16c784'));
+      $big[] = esc($code) . ' · ' . rs($held);
+    }
+  }
+  if ($big) toOwner('Big win to approve: ' . count($big) . " in $dn", mailHtml('Big win waiting for you', count($big) . ' ticket' . (count($big) > 1 ? 's' : ''), array_merge(["$dn result: <b>$digits</b>"], $big, ['Open Admin → Big wins to approve or reject.'])));
+}

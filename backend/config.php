@@ -16,13 +16,13 @@ const ANALYST_EMAILS   = ['murugan@nexlify.in', 'analytics@example.com'];
 const ADMIN_PASSWORD   = 'murugan@2026';
 const ANALYST_PASSWORD = '';
 
-// Email that sends the login codes
-const MAIL_FROM      = 'murugan@api.fashionsnap.in';
+// Email that sends the login codes and notifications
+const MAIL_FROM      = 'murugan.noreply@api.fashionsnap.in';
 const MAIL_FROM_NAME = 'Murugan';
-const SMTP_HOST      = 'smtp.gmail.com';
+const SMTP_HOST      = 'sh008.bigrock.com';
 const SMTP_PORT      = 587;
-const SMTP_USER      = '';      // leave empty: the server's own mail is used, or fill with Gmail + App Password
-const SMTP_PASS      = '';
+const SMTP_USER      = 'murugan.noreply@api.fashionsnap.in';
+const SMTP_PASS      = 'murugan@2026';
 
 // false = code only goes by email, never shown on screen
 const DEV_SHOW_OTP = false;

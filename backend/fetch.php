@@ -109,16 +109,18 @@ function publish(string $day, string $lot, int $h, string $d, string $full = '')
       db()->rollBack(); return 'already published';
     }
   }
-  $n = 0; $paid = 0; $held = 0;
+  $n = 0; $paid = 0; $held = 0; $wins = [];
   foreach (q("SELECT * FROM tickets WHERE day = ? AND lot = ? AND h = ? AND status = 'booked' FOR UPDATE", [$day, $lot, $h])->fetchAll() as $t) {
     $won = 0; $hd = 0;
     foreach (json_decode($t['items'], true) as $x) { $w = lineWin($x, $d); if ($w >= APPROVAL) $hd += $w; else $won += $w; }
     if ($won > 0) addMoney((int)$t['user_id'], $won, 'win', $t['code']);
     if ($hd > 0) q('INSERT INTO big_wins (ticket_id, user_id, amount) VALUES (?,?,?)', [$t['id'], $t['user_id'], $hd]);
     q("UPDATE tickets SET status = 'settled', won = ?, held = ? WHERE id = ?", [$won, $hd, $t['id']]);
+    if ($won > 0 || $hd > 0) $wins[] = [(int)$t['user_id'], $t['code'], $won, $hd];
     $n++; $paid += $won; $held += $hd;
   }
   db()->commit();
+  mailResult($lot, $h, $d, $wins);
   return "PUBLISHED, tickets $n, paid ₹$paid, waiting approval ₹$held";
 }
 

@@ -35,6 +35,10 @@ try {
       do { $rc = 'L3' . randomCode(6); } while (q('SELECT 1 FROM users WHERE ref_code = ?', [$rc])->fetch());
       q('INSERT INTO users (email, role, ref_code) VALUES (?,?,?)', [$email, $role, $rc]);
       $uid = (int)db()->lastInsertId();
+      if ($role === 'player') {
+        mailLater($email, 'Welcome to ' . BRAND . ' 🙏', mailHtml('Welcome!', 'Vetrivel Muruganukku Arogara', ['Your account is ready. Add money to your wallet and pick your lucky numbers.', 'Your invite code: <b>' . $rc . '</b>']));
+        toOwner('New player: ' . $email, mailHtml('New player joined', esc($email), ['Signed up just now.']));
+      }
     } else { $uid = (int)$u['id']; if ($u['role'] !== $role && $role !== 'player') q('UPDATE users SET role = ? WHERE id = ?', [$role, $uid]); }
     $token = bin2hex(random_bytes(32));
     q('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL 30 DAY)', [hash('sha256', $token), $uid]);
@@ -87,7 +91,10 @@ try {
     if (strlen($utr) !== 12) fail('Enter the 12-digit UTR number from your UPI app');
     if (q('SELECT 1 FROM recharges WHERE utr = ?', [$utr])->fetch()) fail('This UTR was already sent');
     q('INSERT INTO recharges (user_id, amount, utr, paid_to) VALUES (?,?,?,?)', [$u['id'], $amt, $utr, $to]);
-    out(['ok' => true, 'id' => (int)db()->lastInsertId(), 'status' => 'pending']);
+    $rid = (int)db()->lastInsertId();
+    mailLater($u['email'], 'We got your recharge of ' . rs($amt), mailHtml('Recharge received', rs($amt), ['UTR <b>' . $utr . '</b>', 'We are checking the payment. The money is added to your wallet as soon as it is confirmed.']));
+    toOwner('New recharge ' . rs($amt) . ' – please check', mailHtml('New recharge to check', rs($amt), ['From <b>' . esc($u['email']) . '</b>', 'UTR <b>' . $utr . '</b>', 'Paid to <b>' . esc($to ?: '—') . '</b>', 'Check it in your UPI app, then open Admin → Recharges.']));
+    out(['ok' => true, 'id' => $rid, 'status' => 'pending']);
   }
 
   case 'withdraw': {  // player asks to take money out: it leaves the wallet now, the owner sends it by UPI
@@ -103,6 +110,8 @@ try {
     $id = (int)db()->lastInsertId();
     addMoney($u['id'], -$amt, 'withdraw', 'WD-' . $id);
     db()->commit();
+    mailLater($u['email'], 'Withdrawal of ' . rs($amt) . ' is being processed', mailHtml('Withdrawal requested', rs($amt), ['To UPI ID <b>' . esc($upi) . '</b>', 'The owner will send it soon. You will get an email when it is paid.']));
+    toOwner('Withdrawal request ' . rs($amt) . ' – please pay', mailHtml('Withdrawal to pay', rs($amt), ['Player <b>' . esc($u['email']) . '</b>', 'Send to UPI ID <b>' . esc($upi) . '</b>', 'After paying, open Admin → Withdrawals and click Mark paid.']));
     out(['ok' => true, 'id' => $id, 'wallet' => $w - $amt]);
   }
 
@@ -152,6 +161,7 @@ try {
       'lots' => array_map(fn($k, $h) => ['k' => $k, 'h' => array_values($h)], array_keys(LOTS), array_values(LOTS)),
       'close' => CLOSE, 'price' => array_values(PRICE), 'win' => array_values(WIN), 'last' => [WIN_LAST2, WIN_LAST1],
       'approval' => APPROVAL, 'ref_bonus' => REF_BONUS, 'upi' => ['id' => UPI_ID, 'name' => UPI_NAME],
+      'alert_email' => alertEmail(), 'win_mail_min' => winMailMin(),
       'upis' => array_map(fn($u) => ['id' => $u['id'], 'name' => $u['name'], 'on' => !isset($u['on']) || $u['on'], 'qr' => !empty($u['qr']) ? $u['qr'] : null], UPIS)]]);
   }
 
@@ -191,6 +201,8 @@ try {
     q('UPDATE users SET referred_by = ? WHERE id = ?', [$r['id'], $u['id']]);
     addMoney($u['id'], REF_BONUS, 'bonus', $c);
     db()->commit();
+    if (REF_BONUS > 0) mailLater($u['email'], 'Bonus ' . rs(REF_BONUS) . ' added', mailHtml('Invite bonus added', rs(REF_BONUS), ['You used code <b>' . esc($c) . '</b>. The bonus is in your wallet.'], '#16c784'));
+    mailLater($r['email'], 'Your friend joined ' . BRAND, mailHtml('A friend used your code', esc(substr($u['email'], 0, 1) . '***@' . explode('@', $u['email'])[1]), ['Thanks for inviting your friends!']));
     out(['ok' => true, 'bonus' => REF_BONUS]);
   }
 
@@ -231,7 +243,11 @@ try {
     if (!$r) { db()->rollBack(); fail('Already decided'); }
     q('UPDATE recharges SET status = ?, decided_at = NOW() WHERE id = ?', [$ok ? 'added' : 'rejected', $id]);
     if ($ok) addMoney((int)$r['user_id'], (float)$r['amount'], 'recharge', $r['utr']);
-    db()->commit(); out(['ok' => true]);
+    db()->commit();
+    toPlayer((int)$r['user_id'], $ok ? rs($r['amount']) . ' added to your wallet ✅' : 'Your recharge of ' . rs($r['amount']) . ' was not added',
+      $ok ? mailHtml('Money added', rs($r['amount']), ['UTR <b>' . esc($r['utr']) . '</b>', 'Your wallet is ready. Good luck!'], '#16c784')
+          : mailHtml('Recharge not added', rs($r['amount']), ['UTR <b>' . esc($r['utr']) . '</b>', 'We could not find this payment. If you paid, reply with a screenshot of the payment.'], '#ff5c7a'));
+    out(['ok' => true]);
   }
 
   case 'admin_publish': {    // {day, lot, h, digits}: publishes the result and pays every ticket of that slot
@@ -242,16 +258,18 @@ try {
     db()->beginTransaction();
     try { q('INSERT INTO results (day, lot, h, digits) VALUES (?,?,?,?)', [$day, $lot, $h, $d]); }
     catch (PDOException $e) { db()->rollBack(); fail('Result for this slot is already published'); }
-    $paid = 0; $heldTot = 0; $n = 0;
+    $paid = 0; $heldTot = 0; $n = 0; $wins = [];
     foreach (q("SELECT * FROM tickets WHERE day = ? AND lot = ? AND h = ? AND status = 'booked' FOR UPDATE", [$day, $lot, $h])->fetchAll() as $t) {
       $won = 0; $held = 0;
       foreach (json_decode($t['items'], true) as $x) { $w = lineWin($x, $d); if ($w >= APPROVAL) $held += $w; else $won += $w; }
       if ($won > 0) addMoney((int)$t['user_id'], $won, 'win', $t['code']);
       if ($held > 0) q('INSERT INTO big_wins (ticket_id, user_id, amount) VALUES (?,?,?)', [$t['id'], $t['user_id'], $held]);
       q("UPDATE tickets SET status = 'settled', won = ?, held = ? WHERE id = ?", [$won, $held, $t['id']]);
+      if ($won > 0 || $held > 0) $wins[] = [(int)$t['user_id'], $t['code'], $won, $held];
       $paid += $won; $heldTot += $held; $n++;
     }
     db()->commit();
+    mailResult($lot, $h, $d, $wins);
     out(['ok' => true, 'tickets' => $n, 'paid' => $paid, 'held_for_approval' => $heldTot]);
   }
 
@@ -273,7 +291,12 @@ try {
       q("UPDATE withdrawals SET status = 'rejected', note = ?, decided_at = NOW() WHERE id = ?", [mb_substr(trim((string)arg('note')), 0, 160) ?: null, $id]);
       addMoney((int)$x['user_id'], (float)$x['amount'], 'refund', 'WD-' . $id);
     }
-    db()->commit(); out(['ok' => true]);
+    db()->commit();
+    $nt = mb_substr(trim((string)arg('note')), 0, 160);
+    toPlayer((int)$x['user_id'], $paid ? rs($x['amount']) . ' sent to your UPI ✅' : 'Withdrawal not paid, ' . rs($x['amount']) . ' returned to wallet',
+      $paid ? mailHtml('Withdrawal paid', rs($x['amount']), ['Sent to <b>' . esc($x['upi']) . '</b>', 'Reference <b>' . esc(trim((string)arg('utr'))) . '</b>'], '#16c784')
+            : mailHtml('Withdrawal not paid', rs($x['amount']), ['The money is back in your wallet.', $nt !== '' ? 'Reason: ' . esc($nt) : ''], '#ff5c7a'));
+    out(['ok' => true]);
   }
 
   case 'admin_players': {    // ?q=search&page=0 -> players with their money totals
@@ -302,6 +325,7 @@ try {
     if (!$p || $p['role'] !== 'player') fail('Only players can be blocked');
     q('UPDATE users SET blocked = ?, block_note = ? WHERE id = ?', [$b ? 1 : 0, $b ? (mb_substr(trim((string)arg('note')), 0, 160) ?: null) : null, $id]);
     if ($b) q('DELETE FROM sessions WHERE user_id = ?', [$id]);   // signs them out everywhere
+    toPlayer($id, $b ? 'Your account is blocked' : 'Your account is open again', $b ? mailHtml('Account blocked', '🔒', ['Please contact support.'], '#ff5c7a') : mailHtml('Account open again', '✅', ['You can sign in and play again.'], '#16c784'));
     out(['ok' => true]);
   }
 
@@ -315,6 +339,7 @@ try {
     if ($p['wallet'] + $amt < 0) { db()->rollBack(); fail('Wallet has only ₹' . (float)$p['wallet'] . ', cannot remove more than that'); }
     addMoney($id, $amt, 'adjust', 'Admin: ' . $note);
     db()->commit();
+    toPlayer($id, ($amt > 0 ? rs($amt) . ' added to' : rs(-$amt) . ' removed from') . ' your wallet', mailHtml($amt > 0 ? 'Money added by owner' : 'Money removed by owner', rs(abs($amt)), ['Reason: ' . esc($note), 'Wallet now <b>' . rs((float)$p['wallet'] + $amt) . '</b>'], $amt > 0 ? '#16c784' : '#ff5c7a'));
     out(['ok' => true, 'wallet' => (float)$p['wallet'] + $amt]);
   }
 
@@ -334,7 +359,11 @@ try {
       'win' => [1 => $int($w[0] ?? 0, 1, 10000000, 'Single win'), 2 => $int($w[1] ?? 0, 1, 10000000, 'Double win'), 3 => $int($w[2] ?? 0, 1, 10000000, 'Triple win')],
       'win_last2' => $int($c['win_last2'] ?? 0, 0, 10000000, 'Triple last-2 win'), 'win_last1' => $int($c['win_last1'] ?? 0, 0, 10000000, 'Triple last-1 win'),
       'approval' => $int($c['approval'] ?? 0, 1, 100000000, 'Approval limit'), 'ref_bonus' => $int($c['ref_bonus'] ?? 0, 0, 100000, 'Referral bonus'),
-      'upis' => []];
+      'upis' => [],
+      'alert_email' => '', 'win_mail_min' => max(0, (int)($c['win_mail_min'] ?? 0))];
+    $ae = trim((string)($c['alert_email'] ?? ''));
+    if ($ae !== '' && !filter_var($ae, FILTER_VALIDATE_EMAIL)) fail('Alert email is not a valid email address');
+    $new['alert_email'] = $ae;
     foreach ((array)($c['upis'] ?? []) as $i => $x) {
       $id = trim((string)($x['id'] ?? '')); $nm = mb_substr(trim((string)($x['name'] ?? '')), 0, 40);
       if ($id === '' && $nm === '') continue;
@@ -350,6 +379,12 @@ try {
     $new['upi_id'] = $on[0]['id']; $new['upi_name'] = $on[0]['name'];
     if (file_put_contents(__DIR__ . '/settings.json', json_encode($new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) fail('Could not save. Check that the api folder is writable.', 500);
     out(['ok' => true]);
+  }
+
+  case 'admin_mail': {        // owner: read email settings, or {test:true} to send a test email
+    user('admin');
+    if (arg('test')) { $to = alertEmail(); if ($to === '') fail('Set an alert email first'); $ok = mailSend($to, 'Test email from ' . BRAND, mailHtml('Emails are working ✅', 'Test', ['This is where you will get alerts for recharges, withdrawals and big wins.'], '#16c784')); if (!$ok) fail('Could not send. Check SMTP_HOST, SMTP_USER and SMTP_PASS in config.php.', 500); out(['ok' => true, 'to' => $to]); }
+    out(['ok' => true, 'alert_email' => alertEmail(), 'win_mail_min' => winMailMin(), 'smtp' => SMTP_USER !== '']);
   }
 
   case 'admin_upload_qr': {  // {image: "data:image/png;base64,..."} -> saves the owner's QR picture, returns its path
@@ -371,7 +406,11 @@ try {
     if (!$b) { db()->rollBack(); fail('Already decided'); }
     q('UPDATE big_wins SET status = ?, decided_at = NOW() WHERE id = ?', [$ok ? 'approved' : 'rejected', $id]);
     if ($ok) addMoney((int)$b['user_id'], (float)$b['amount'], 'win', $b['code']);
-    db()->commit(); out(['ok' => true]);
+    db()->commit();
+    toPlayer((int)$b['user_id'], $ok ? 'Big win ' . rs($b['amount']) . ' added to your wallet 🏆' : 'Update on your big win',
+      $ok ? mailHtml('Big win approved!', rs($b['amount']), ['Ticket <b>' . esc($b['code']) . '</b>', 'The money is in your wallet now.'], '#16c784')
+          : mailHtml('Big win not approved', rs($b['amount']), ['Ticket <b>' . esc($b['code']) . '</b>', 'Please contact support for details.'], '#ff5c7a'));
+    out(['ok' => true]);
   }
 
   // ================= analytics =================
