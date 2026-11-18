@@ -109,21 +109,20 @@ function smtpSend(string $to, string $subject, string $html): bool {
   return true;
 }
 
+defined('BRAND') or define('BRAND', 'Murugan');   // name shown in every email
+
 function sendCode(string $email, string $code): bool {
-  $subject = 'Your ' . MAIL_FROM_NAME . ' sign-in code: ' . $code;
+  $subject = 'Your ' . BRAND . ' sign-in code: ' . $code;
   $html = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border-radius:16px;background:#1b0d3a;color:#fff;text-align:center">'
-    . '<h2 style="color:#ffd700;margin:0 0 8px">' . MAIL_FROM_NAME . '</h2><p>Your sign-in code is</p>'
+    . '<div style="font-size:26px">🦚</div><h2 style="color:#ffd700;margin:0 0 8px;letter-spacing:3px">' . strtoupper(BRAND) . '</h2><p>Your sign-in code is</p>'
     . '<div style="font-size:34px;letter-spacing:8px;font-weight:bold;color:#ffd700;margin:12px 0">' . $code . '</div>'
     . '<p style="color:#cbb8ff;font-size:13px">It works for 10 minutes. If you did not ask for it, ignore this email.</p></div>';
-  if (!empty(SMTP_USER)) {
-    return smtpSend($email, $subject, $html);
-  }
-  $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . MAIL_FROM_NAME . ' <' . MAIL_FROM . ">\r\n";
-  return @mail($email, $subject, $html, $headers, '-f' . MAIL_FROM);
+  if (SMTP_USER !== '') return smtpSend($email, $subject, $html);
+  $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . BRAND . ' <' . MAIL_FROM . ">\r\n";
+  return @mail($email, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers, '-f' . MAIL_FROM);
 }
 
 // ================= emails =================
-defined('BRAND') or define('BRAND', 'Murugan');   // name shown in every email
 
 // Who gets the owner alerts: set in Admin -> Settings ("Alert emails to"); falls back to the first ADMIN_EMAILS address.
 function alertEmail(): string {
@@ -155,8 +154,9 @@ function mailHtml(string $title, string $big, array $lines = [], string $color =
 function mailSend(string $to, string $subject, string $html): bool {
   if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
   if (SMTP_USER !== '') return smtpSend($to, $subject, $html);
-  $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . BRAND . ' <' . MAIL_FROM . ">\r\n";
-  return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers, '-f' . MAIL_FROM);
+  $from = defined('NOTIFY_FROM') ? NOTIFY_FROM : MAIL_FROM;
+  $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: " . BRAND . ' <' . $from . ">\r\n";
+  return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers, '-f' . $from);
 }
 // queue an email; all queued emails go out AFTER the reply is sent, so buttons in the app stay fast
 function mailLater(string $to, string $subject, string $html): void {
