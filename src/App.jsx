@@ -60,6 +60,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
   // ---- overlays ----
   const [sheet, setSheet] = useState(null)                   // 'w' wallet, 'p' profile, 'r' refer & earn
   const [refUsed, setRefUsed] = useState(() => { try { return localStorage.getItem('l3ref:' + user) || '' } catch { return '' } })
+  const [myRefCode, setMyRefCode] = useState(() => { try { return localStorage.getItem('l3refcode:' + user) || '' } catch { return '' } })
 
   const refresh = () => {
     if (!isLive) return
@@ -68,6 +69,23 @@ export default function App({ user = 'player@example.com', onLogout }) {
         setWallet(res.user.wallet || 0)
         setHeld(res.user.held || 0)
         if (res.user.ref_used) setRefUsed(res.user.ref_used)
+        if (res.user.ref_code) {
+          setMyRefCode(res.user.ref_code)
+          try { localStorage.setItem('l3refcode:' + user, res.user.ref_code) } catch {}
+        }
+
+        // friend opened an invite link before signing in: apply that code once, automatically
+        let pend = ''; try { pend = localStorage.getItem('l3pendingRef') || '' } catch {}
+        if (pend) {
+          try { localStorage.removeItem('l3pendingRef') } catch {}
+          if (!res.user.ref_used && pend !== res.user.ref_code) {
+            api('redeem_ref', { code: pend }).then(r => {
+              setRefUsed(pend)
+              toast('🎉 ₹' + (r.bonus || 100) + ' invite bonus added to your wallet')
+              refresh()
+            }, x => toast(x.message || 'Could not apply referral bonus'))
+          }
+        }
       }
     }).catch(() => {})
     api('tickets').then(res => {
@@ -301,13 +319,13 @@ export default function App({ user = 'player@example.com', onLogout }) {
       </div>
 
       <div className={'sheet tall' + (sheet === 'r' ? ' on' : '')}>
-        <Refer user={user} redeemed={refUsed} toast={toast} onRedeem={async c => {
+        <Refer user={user} code={myRefCode} redeemed={refUsed} toast={toast} onRedeem={async c => {
           if (isLive) {
             try {
-              await api('redeem_ref', { code: c })
+              const r = await api('redeem_ref', { code: c })
               setRefUsed(c)
-              changeWallet(walletRef.current + BONUS)
-              toast('₹' + BONUS + ' referral bonus added to wallet')
+              toast('🎉 ₹' + (r.bonus || BONUS) + ' invite bonus added to your wallet')
+              refresh()
             } catch (err) {
               toast(err.message || 'Could not redeem code')
             }

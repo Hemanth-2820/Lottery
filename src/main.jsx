@@ -13,6 +13,9 @@ document.head.appendChild(st)
 const fit = () => document.documentElement.style.setProperty('--rz', Math.min(1, (Math.min(window.innerWidth, 430) - 32) / 360).toFixed(4))
 fit(); window.addEventListener('resize', fit)
 
+// invite link: save ?ref=CODE so the bonus is applied after the friend signs in (even after installing the app)
+try { const rc = new URLSearchParams(location.search).get('ref'); if (rc && /^L3[0-9A-Z]{6}$/i.test(rc)) localStorage.setItem('l3pendingRef', rc.toUpperCase()) } catch {}
+
 createRoot(document.getElementById('root')).render(<Root />)
 
 // needed so phones can install the app on the home screen; updateViaCache 'none' = always check for a new sw.js

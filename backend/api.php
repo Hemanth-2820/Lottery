@@ -72,6 +72,11 @@ try {
   // ================= player =================
   case 'me': {
     $u = user();
+    if (empty($u['ref_code'])) {
+      do { $rc = 'L3' . randomCode(6); } while (q('SELECT 1 FROM users WHERE ref_code = ?', [$rc])->fetch());
+      q('UPDATE users SET ref_code = ? WHERE id = ?', [$rc, $u['id']]);
+      $u['ref_code'] = $rc;
+    }
     $held = q("SELECT COALESCE(SUM(amount),0) FROM big_wins WHERE user_id = ? AND status = 'pending'", [$u['id']])->fetchColumn();
     $ref = q('SELECT r.ref_code FROM referrals x JOIN users r ON r.id = x.referrer_id WHERE x.referee_id = ?', [$u['id']])->fetchColumn();
     $friends = q('SELECT u.email, x.created_at FROM referrals x JOIN users u ON u.id = x.referee_id WHERE x.referrer_id = ? ORDER BY x.id DESC LIMIT 50', [$u['id']])->fetchAll();
