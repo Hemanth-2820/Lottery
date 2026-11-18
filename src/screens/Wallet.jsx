@@ -70,9 +70,9 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
       <div className="wbal">{inr(shown)}</div>
       <p>{held ? inr(held) + ' is waiting for owner approval (wins of ' + inr(APPROVAL) + ' or more).' : 'Tickets are paid from here automatically. Wins are added here.'}</p>
 
-      {onWithdraw && <div className="wtabs"><button className={tab === 'add' ? 'on' : ''} onClick={() => setTab('add')}>Add money</button><button className={tab === 'out' ? 'on' : ''} onClick={() => setTab('out')}>Withdraw</button></div>}
+      <div className="wtabs" style={{ gridTemplateColumns: onWithdraw ? '1fr 1fr 1fr' : '1fr 1fr' }}><button className={tab === 'add' ? 'on' : ''} onClick={() => setTab('add')}>Add money</button>{onWithdraw && <button className={tab === 'out' ? 'on' : ''} onClick={() => setTab('out')}>Withdraw</button>}<button className={tab === 'hist' ? 'on' : ''} onClick={() => setTab('hist')}>History</button></div>
 
-      {tab === 'out' ? <>
+      {tab === 'hist' ? <History recharges={recharges} withdrawals={withdrawals} /> : tab === 'out' ? <>
         {pending ? <div className="wpend"><b>{inr(+pending.amount)} is on its way</b><span>The owner is sending it to <b>{pending.upi}</b>. This usually takes a few hours.</span></div> : <>
           <h5>Take money out to your UPI</h5>
           <label className="fld" htmlFor="w-out"><span>Amount (₹)</span><input id="w-out" type="number" inputMode="numeric" min="100" value={wAmt || ''} placeholder="100" onChange={e => { setWAmt(Math.floor(+e.target.value) || 0); setAsk(false) }} /></label>
@@ -126,3 +126,40 @@ export default function Wallet({ shown, held, recharges, toast, onRequest, onCon
     </>
   )
 }
+
+// ---------- wallet history: every money movement, newest first ----------
+const TX = {
+  recharge: ['Money added', '💳', 'in'], bet: ['Ticket bought', '🎟', 'out'], win: ['You won', '🏆', 'in'], bonus: ['Invite bonus', '🎁', 'in'],
+  refund: ['Refund', '↩️', 'in'], withdraw: ['Withdrawal', '🏦', 'out'], adjust: ['Adjusted by owner', '🛠', ''],
+}
+function History({ recharges = [], withdrawals = [] }) {
+  const [rows, setRows] = useState(null), [f, setF] = useState('all')
+  useEffect(() => { if (LIVE) api('history').then(r => setRows(r.txns || []), () => setRows([])); else setRows([]) }, [])
+  const pending = [
+    ...recharges.filter(r => r.status === 'pending').map(r => ({ type: 'recharge', amount: +r.amt, ref: 'UTR ' + r.utr, wait: 'Checking' })),
+    ...withdrawals.filter(w => w.status === 'pending').map(w => ({ type: 'withdraw', amount: -w.amount, ref: 'To ' + w.upi, wait: 'Sending' })),
+  ]
+  if (rows === null) return <div className="wpend"><b>Loading…</b><span>Getting your history</span></div>
+  const all = rows.filter(t => f === 'all' || (f === 'in' ? +t.amount > 0 : +t.amount < 0))
+  const tot = rows.reduce((a, t) => { const v = +t.amount; v > 0 ? a.in += v : a.out -= v; return a }, { in: 0, out: 0 })
+  const when = d => { const x = new Date(d.replace(' ', 'T')); return isNaN(x) ? d : x.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) }
+  return (
+    <div className="wh">
+      <div className="wh-sum"><div><small>Money in</small><b className="in">+{inr(tot.in)}</b></div><div><small>Money out</small><b className="out">−{inr(tot.out)}</b></div></div>
+      <div className="wh-f">{[['all', 'All'], ['in', 'Money in'], ['out', 'Money out']].map(([k, l]) => <button key={k} className={f === k ? 'on' : ''} onClick={() => setF(k)}>{l}</button>)}</div>
+      {pending.length > 0 && f !== 'in' && f !== 'out' && pending.map((t, i) => <Row key={'p' + i} t={t} when="Waiting" />)}
+      {all.length ? all.map((t, i) => <Row key={i} t={t} when={when(t.created_at)} />) : !pending.length && <div className="wpend"><b>No transactions yet</b><span>Money you add, tickets, wins and withdrawals will show here.</span></div>}
+    </div>
+  )
+}
+function Row({ t, when }) {
+  const [l, ic] = TX[t.type] || [t.type, '•']; const v = +t.amount, inc = v > 0
+  return (
+    <div className={'wh-row' + (t.wait ? ' wait' : '')}>
+      <i className={inc ? 'in' : 'out'}>{ic}</i>
+      <span><b>{l}</b><small>{t.ref ? String(t.ref).replace(/^Admin: /, '') + ' · ' : ''}{when}</small></span>
+      <em className={inc ? 'in' : 'out'}>{inc ? '+' : '−'}{inr(Math.abs(v))}{t.wait && <small>{t.wait}</small>}</em>
+    </div>
+  )
+}
+

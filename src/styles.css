@@ -695,3 +695,22 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 .tk-chip button{width:24px;height:24px;flex:none;border:0;border-radius:50%;background:rgba(255,70,100,.22);color:#ff8fa3;font-size:12px;cursor:pointer}
 @keyframes tkin{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
 
+/* wallet history */
+.wh{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.wh-sum{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wh-sum>div{padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.3);border:1px solid rgba(190,145,255,.25)}
+.wh-sum small{display:block;font-size:12px;color:#cbb8f2}.wh-sum b{font:800 18px var(--mono)}
+.in{color:#2ee59d}.out{color:#ff8fa3}
+.wh-f{display:flex;gap:6px;margin:4px 0}
+.wh-f button{flex:1;height:34px;border-radius:99px;border:1px solid rgba(190,145,255,.3);background:none;color:#e6d4ff;font-weight:700;font-size:13px}
+.wh-f .on{background:rgba(255,210,63,.15);border-color:#ffd23f;color:#ffd23f}
+.wh-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.wh-row.wait{border-style:dashed;opacity:.85}
+.wh-row>i{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:12px;font-style:normal;font-size:19px}
+.wh-row>i.in{background:rgba(46,229,157,.14)}.wh-row>i.out{background:rgba(255,143,163,.14)}
+.wh-row>span{flex:1;min-width:0}.wh-row>span b{display:block;font-size:14px}
+.wh-row>span small{display:block;font-size:12px;color:#bfaee9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wh-row>em{font:800 15px var(--mono);font-style:normal;text-align:right;white-space:nowrap}
+.wh-row>em small{display:block;font:700 10px Poppins,sans-serif;color:#ffd23f}
+
+
