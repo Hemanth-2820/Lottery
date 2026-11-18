@@ -14,14 +14,14 @@ const STACKS = [[2, 7, 0], [13, 10, 1], [24, 5, 2], [66, 6, 3], [77, 11, 4], [88
 function Confetti() {
   const ref = useRef(null)
   useEffect(() => {
-    const c = ref.current, x = c.getContext('2d'), D = Math.min(devicePixelRatio || 1, 2)
+    const c = ref.current, x = c.getContext('2d'), D = Math.min(devicePixelRatio || 1, 1.5)
     const W = c.clientWidth, H = c.clientHeight; c.width = W * D; c.height = H * D; x.scale(D, D)
     const cols = ['#ffd23f', '#ff3d5a', '#1fc87e', '#2f8bff', '#ff6ec7', '#fff', '#a05cff'], P = []
     let raf, t0 = 0, fired = false
     const loop = t => {
       if (!t0) t0 = t; const e = (t - t0) / 1000
       if (!fired && e > 3.35) { fired = true
-        for (let i = 0; i < 160; i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 2.6, v = 6 + Math.random() * 9
+        for (let i = 0; i < (innerWidth < 500 ? 70 : 140); i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 2.6, v = 6 + Math.random() * 9
           P.push({ x: W / 2, y: H * .5, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: Math.random() * 6, w: 4 + Math.random() * 5, h: 7 + Math.random() * 7, c: cols[i % cols.length], s: (Math.random() - .5) * .4 }) } }
       x.clearRect(0, 0, W, H)
       for (const p of P) { p.vx *= .985; p.vy = p.vy * .985 + .22; p.x += p.vx; p.y += p.vy; p.r += p.s

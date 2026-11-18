@@ -164,4 +164,15 @@
 .s5-tag i{width:calc(var(--w)*.016);height:calc(var(--w)*.016);background:#ffcf4a;transform:rotate(45deg);box-shadow:0 0 8px #ffcf4a}
 @keyframes s5tag{from{opacity:0;transform:scaleX(.2)}to{opacity:1;transform:none}}
 
+/* ===== speed fix: remove the effects that make phones stutter (animated blur, blend modes) ===== */
+@keyframes s5spin{0%{transform:rotate(-20deg)}100%{transform:rotate(1764deg)}}
+@keyframes s5dim{to{opacity:.55}}
+@keyframes s5in{0%{opacity:0;transform:translateY(-60%) scale(1.8)}60%{opacity:1}100%{opacity:1;transform:none}}
+.s5-haze{filter:none!important;animation:none!important;opacity:.6}
+.s5-halo,.s5-sweep,.s5-spot{mix-blend-mode:normal!important}
+.s5-spot{filter:none!important}
+.s5-wheel,.s5-face,.s5-c,.s5-coin,.s5-logo em{will-change:transform;backface-visibility:hidden;transform:translateZ(0)}
+.s5-glowbg{will-change:opacity,transform}
+@media (max-width:480px){.s5-stars i:nth-child(n+10){display:none}.s5-beams i:nth-child(n+4){display:none}.s5-twk{display:none}}
+
 
