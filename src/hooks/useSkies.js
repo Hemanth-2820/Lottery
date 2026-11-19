@@ -64,7 +64,7 @@ export default function useSkies(stRef) {
       const loop = t => {
         raf = requestAnimationFrame(loop)
         const st = stRef.current
-        if (document.hidden || st === 'res' || t - last < 42) return
+        if (document.hidden || st === 'res' || t - last < 100) return
         last = t
         document.querySelectorAll(st === 'home' ? '#strip canvas.sky' : '#psky').forEach(cv => {
           if (cv.width !== W) { cv.width = W; cv.height = H }

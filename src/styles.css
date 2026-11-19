@@ -729,5 +729,13 @@ body{position:fixed;inset:0;overscroll-behavior:none;touch-action:manipulation;-
 .cal-gr button.sel{background:linear-gradient(135deg,#fff3b8,#ffb703);color:#2a1000}.cal-gr button.sel::after{background:#2a1000;box-shadow:none}
 .cal-note{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#bfaee9}.cal-note i{width:6px;height:6px;border-radius:50%;background:#ffd23f}
 
+/* SPEED: animations on screens that are not on view are paused */
+.cam[data-st="home"] > section:not(#s-home) *,
+.cam[data-st="res"] > section:not(#s-res) *,
+.cam[data-st="play"] > section:not(#s-play) *,
+.cam[data-st="tix"] > section:not(#s-tix) *{animation-play-state:paused!important}
+.sheet:not(.on) *{animation-play-state:paused!important}
+
+
 
 

@@ -1,10 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import Home from './screens/Home.jsx'
-import Play from './screens/Play.jsx'
-import Result from './screens/Result.jsx'
-import Tickets from './screens/Tickets.jsx'
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react'
+import HomeS from './screens/Home.jsx'
+import PlayS from './screens/Play.jsx'
+import ResultS from './screens/Result.jsx'
+import TicketsS from './screens/Tickets.jsx'
 import Refer, { BONUS } from './screens/Refer.jsx'
-import Wallet from './screens/Wallet.jsx'
+import WalletS from './screens/Wallet.jsx'
+
+// SPEED: a screen redraws only when its data changes (button handlers are ignored),
+// and only the screen on view gets the 1-second clock tick. Before, all four screens and the wallet redrew every second.
+const same = (a, b) => Object.keys(b).every(k => typeof b[k] === 'function' || a[k] === b[k])
+const Home = memo(HomeS, same), Play = memo(PlayS, same), Result = memo(ResultS, same), Tickets = memo(TicketsS, same), Wallet = memo(WalletS, same)
 import { ballHTML, fly } from './components/Ball.jsx'
 import { LOGO } from './art.js'
 import { useAnimatedNumber, useNow, useStateRef } from './hooks/hooks.js'
@@ -126,7 +131,7 @@ export default function App({ user = 'player@example.com', onLogout }) {
   }
 
   useEffect(() => {
-    refresh()
+    refresh(); const t = setInterval(() => { if (!document.hidden) refresh() }, 25000); return () => clearInterval(t)
   }, [user])
   const [rcpt, setRcpt] = useState(false)
   const [toastS, setToastS] = useState({ m: '', on: false }), toastT = useRef()
@@ -275,13 +280,13 @@ export default function App({ user = 'player@example.com', onLogout }) {
       </div>
 
       {/* three floors of one machine; the camera slides between them */}
-      <div id="world"><div className="cam" style={{ transform: `translateY(-${IDX[st] * 25}%)` }}>
-        <Home liveRef={liveRef} led={led} machSpin={machSpin} onShake={shake} onPlay={() => { setSel(null); go('play') }} onPick={pickShow} />
-        <Result tickets={tickets} published={published} rsel={rsel} drawing={drawing} onSelect={setRsel} onDemo={isLive ? null : demoPublish} />
-        <Play show={show} mode={mode} tubes={tubes} shown={shown} target={target} qty={qty} cart={cart} bump={bump} glassRefs={glassRefs} btRef={btRef}
+      <div id="world"><div className="cam" data-st={st} style={{ transform: `translateY(-${IDX[st] * 25}%)` }}>
+        <Home tick={st === 'home' ? now : 0} liveRef={liveRef} led={led} machSpin={machSpin} onShake={shake} onPlay={() => { setSel(null); go('play') }} onPick={pickShow} />
+        <Result tick={st === 'res' ? now : 0} tickets={tickets} published={published} rsel={rsel} drawing={drawing} onSelect={setRsel} onDemo={isLive ? null : demoPublish} />
+        <Play tick={st === 'play' ? now : 0} show={show} mode={mode} tubes={tubes} shown={shown} target={target} qty={qty} cart={cart} bump={bump} glassRefs={glassRefs} btRef={btRef}
           onMode={pickMode} onBall={pickBall} onTube={tapTube} onQty={d => setQty(q => Math.min(99, Math.max(1, q + d)))} onAdd={addLines}
           onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onTicket={() => go('tix')} />
-        <Tickets cart={cart} tickets={tickets} show={show} drawing={drawing} onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onOpen={openTicket} onDemo={isLive ? null : demoPublish} onPlay={() => go('play')} />
+        <Tickets tick={st === 'tix' ? now : 0} cart={cart} tickets={tickets} show={show} drawing={drawing} onDel={i => setCart(c => c.filter((_, j) => j !== i))} onPay={pay} onOpen={openTicket} onDemo={isLive ? null : demoPublish} onPlay={() => go('play')} />
       </div></div>
 
       {/* bottom bar: the picture is the bar, these are the tap areas */}
